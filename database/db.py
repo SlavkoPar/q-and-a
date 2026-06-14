@@ -92,6 +92,35 @@ def seed_db():
         conn.close()
 
 
+def create_user(name, email, password):
+    """Hash the password and insert a new user; return the new user's id.
+
+    Raises sqlite3.IntegrityError if the email is already registered
+    (the users.email UNIQUE constraint).
+    """
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            (name, email, generate_password_hash(password)),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email):
+    """Return the user row matching email, or None if no such user exists."""
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT * FROM users WHERE email = ?", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
 def _load_groups():
     """Read groups from groups.json; return [] if the file is missing."""
     if not os.path.exists(GROUPS_JSON_PATH):

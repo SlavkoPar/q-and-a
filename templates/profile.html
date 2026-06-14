@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — Q&A{% endblock %}
+
+{% block content %}
+
+<section class="profile-section">
+    <div class="profile-container">
+
+        <!-- User info card -->
+        <div class="profile-card user-card">
+            <div class="user-avatar">{{ user.initials }}</div>
+            <div class="user-meta">
+                <h1 class="user-name">{{ user.name }}</h1>
+                <p class="user-email">{{ user.email }}</p>
+                <p class="user-since">Member since {{ user.member_since }}</p>
+            </div>
+        </div>
+
+        <!-- Summary stats row -->
+        <div class="stats-row">
+            {% for stat in stats %}
+            <div class="profile-card stat-card">
+                <span class="stat-value">{{ stat.value }}</span>
+                <span class="stat-label">{{ stat.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}

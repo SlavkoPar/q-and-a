@@ -19,9 +19,16 @@
                 <span class="brand-icon">◈</span>
                 <span class="brand-name">Q&A</span>
             </a>
+
             <div class="nav-links">
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('groups') }}">Groups</a>
+                <a href="{{ url_for('profile') }}" class="{{ 'nav-link-active' if request.endpoint == 'profile' else '' }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="nav-cta">Log out</a>
+                {% else %}
                 <a href="{{ url_for('login') }}">Sign in</a>
                 <a href="{{ url_for('register') }}" class="nav-cta">Get started</a>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -34,7 +41,7 @@
         <div class="footer-inner">
             <span class="brand-icon">◈</span>
             <span class="footer-name">Q&A</span>
-            <p class="footer-copy">Track every rupee. Own your finances.</p>
+            <p class="footer-copy">Build your knowledge base. Share what you know.</p>
         </div>
     </footer>
 
