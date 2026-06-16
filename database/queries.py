@@ -69,3 +69,239 @@ def get_summary_stats(user_id):
         "questions": row["questions"],
         "answers": 0,
     }
+
+
+# ------------------------------------------------------------------ #
+# Groups                                                             #
+# ------------------------------------------------------------------ #
+
+def get_user_groups(user_id):
+    """Return [{id, name}] of the user's groups, ordered by name."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, name FROM groups WHERE user_id = ? ORDER BY name",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [{"id": row["id"], "name": row["name"]} for row in rows]
+
+
+def get_all_groups(q=None, parent_id=None):
+    """Return groups (any owner) with owner + parent names, optionally filtered.
+
+    q: case-insensitive substring on the group name.
+    parent_id: only groups whose parent_group_id equals this value.
+    """
+    clauses = []
+    params = []
+    if q:
+        clauses.append("g.name LIKE ?")
+        params.append(f"%{q}%")
+    if parent_id is not None:
+        clauses.append("g.parent_group_id = ?")
+        params.append(parent_id)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT g.id, g.name, g.description, g.num_of_questions,
+                   g.user_id, g.parent_group_id,
+                   u.name AS owner_name,
+                   p.name AS parent_name
+            FROM groups g
+            JOIN users u ON u.id = g.user_id
+            LEFT JOIN groups p ON p.id = g.parent_group_id
+            {where}
+            ORDER BY g.name
+            """,
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_group_by_id(group_id, user_id):
+    """Return the group row only if it belongs to user_id, else None."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM groups WHERE id = ? AND user_id = ?",
+            (group_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row is not None else None
+
+
+def insert_group(user_id, name, parent_group_id=None, description=None):
+    """Insert a new group and return its id (defaults fill the rest)."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO groups (user_id, parent_group_id, name, description)
+            VALUES (?, ?, ?, ?)
+            """,
+            (user_id, parent_group_id, name, description),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_group(group_id, user_id, name, parent_group_id=None, description=None):
+    """Update a group in place, scoped to id AND user_id. Returns rows changed."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            UPDATE groups
+               SET name = ?, parent_group_id = ?, description = ?
+             WHERE id = ? AND user_id = ?
+            """,
+            (name, parent_group_id, description, group_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def count_child_groups(group_id, user_id):
+    """How many of the user's groups have this group as their parent."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM groups "
+            "WHERE parent_group_id = ? AND user_id = ?",
+            (group_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+    return row["n"]
+
+
+def delete_group(group_id, user_id):
+    """Delete a group scoped to id AND user_id. Returns rows deleted."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "DELETE FROM groups WHERE id = ? AND user_id = ?",
+            (group_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Questions                                                          #
+# ------------------------------------------------------------------ #
+
+def _recount_group_questions(conn, group_id):
+    """Sync groups.num_of_questions to the live count. Uses an open conn."""
+    conn.execute(
+        """
+        UPDATE groups
+           SET num_of_questions = (
+               SELECT COUNT(*) FROM questions WHERE group_id = ?
+           )
+         WHERE id = ?
+        """,
+        (group_id, group_id),
+    )
+
+
+def get_questions_for_group(group_id):
+    """Return [{id, text, description, created_at}] for a group, oldest first."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, text, description, created_at
+            FROM questions
+            WHERE group_id = ?
+            ORDER BY created_at, id
+            """,
+            (group_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_question_by_id(question_id, user_id):
+    """Return the question row only if it belongs to user_id, else None."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM questions WHERE id = ? AND user_id = ?",
+            (question_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row is not None else None
+
+
+def insert_question(group_id, user_id, text, description=None):
+    """Insert a question and keep the group's num_of_questions in sync."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO questions (group_id, user_id, text, description)
+            VALUES (?, ?, ?, ?)
+            """,
+            (group_id, user_id, text, description),
+        )
+        _recount_group_questions(conn, group_id)
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_question(question_id, user_id, text, description=None):
+    """Update a question's text/description, scoped to owner. Returns rows changed."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            UPDATE questions
+               SET text = ?, description = ?
+             WHERE id = ? AND user_id = ?
+            """,
+            (text, description, question_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def delete_question(question_id, user_id):
+    """Delete a question (owner-scoped) and re-sync the group's count."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT group_id FROM questions WHERE id = ? AND user_id = ?",
+            (question_id, user_id),
+        ).fetchone()
+        if row is None:
+            return 0
+        cur = conn.execute(
+            "DELETE FROM questions WHERE id = ? AND user_id = ?",
+            (question_id, user_id),
+        )
+        _recount_group_questions(conn, row["group_id"])
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()

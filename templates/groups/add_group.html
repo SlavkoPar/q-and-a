@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Add group — Q&A{% endblock %}
+
+{% block content %}
+
+<section class="auth-section">
+    <div class="auth-container">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Add a group</h1>
+            <p class="auth-subtitle">Organise your questions into a group</p>
+        </div>
+
+        <div class="auth-card">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            {% for message in messages %}
+            <div class="auth-error">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('add_group') }}">
+                <div class="form-group">
+                    <label for="name">Group name</label>
+                    <input type="text" id="name" name="name"
+                           class="form-input" placeholder="e.g. Backend"
+                           maxlength="100" value="{{ form.name }}"
+                           required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="parent_group_id">Parent group (optional)</label>
+                    <select id="parent_group_id" name="parent_group_id"
+                            class="form-input">
+                        <option value="">— None (top-level group) —</option>
+                        {% for group in parent_groups %}
+                        <option value="{{ group.id }}"
+                            {% if form.parent_group_id == group.id|string %}selected{% endif %}>
+                            {{ group.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description (optional)</label>
+                    <input type="text" id="description" name="description"
+                           class="form-input" placeholder="What is this group about?"
+                           maxlength="200" value="{{ form.description }}">
+                </div>
+                <button type="submit" class="btn-submit">Save group</button>
+            </form>
+        </div>
+
+        <p class="auth-switch">
+            <a href="{{ url_for('groups') }}">Cancel</a>
+        </p>
+
+    </div>
+</section>
+
+{% endblock %}

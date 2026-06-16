@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Edit group — Q&A{% endblock %}
+
+{% block content %}
+
+<section class="auth-section">
+    <div class="auth-container auth-container-wide">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Edit group</h1>
+            <p class="auth-subtitle">Update this group's details</p>
+        </div>
+
+        <div class="auth-card">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            {% for message in messages %}
+            <div class="auth-error">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form id="group-form" method="POST"
+                  action="{{ url_for('edit_group', id=group.id) }}">
+                <div class="form-group">
+                    <label for="name">Group name</label>
+                    <input type="text" id="name" name="name"
+                           class="form-input" placeholder="e.g. Backend"
+                           maxlength="100" value="{{ form.name }}"
+                           required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="parent_group_id">Parent group (optional)</label>
+                    <select id="parent_group_id" name="parent_group_id"
+                            class="form-input">
+                        <option value="">— None (top-level group) —</option>
+                        {% for parent in parent_groups %}
+                        <option value="{{ parent.id }}"
+                            {% if form.parent_group_id == parent.id|string %}selected{% endif %}>
+                            {{ parent.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description (optional)</label>
+                    <input type="text" id="description" name="description"
+                           class="form-input" placeholder="What is this group about?"
+                           maxlength="200" value="{{ form.description }}">
+                </div>
+            </form>
+
+            <!-- Questions section — always visible, sits before Save Changes -->
+            <section id="questions" class="questions-section">
+                <div class="questions-header">
+                    <h2 class="questions-title">Questions</h2>
+                    <button type="button" class="btn-submit btn-inline"
+                            onclick="openAddQ()">Add Question</button>
+                </div>
+
+                <form id="add-q-form" class="add-q-form" method="POST" hidden
+                      action="{{ url_for('add_question', id=group.id) }}">
+                    <div class="form-group">
+                        <label for="q-text">Question</label>
+                        <input type="text" id="q-text" name="text"
+                               class="form-input" maxlength="200" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="q-desc">Description (optional)</label>
+                        <input type="text" id="q-desc" name="description"
+                               class="form-input" maxlength="500">
+                    </div>
+                    <button type="submit" class="btn-submit btn-inline">Save question</button>
+                </form>
+
+                {% if questions %}
+                <ul class="question-list">
+                    {% for q in questions %}
+                    <li class="question-row">
+                        <div class="question-text">
+                            <strong>{{ q.text }}</strong>
+                            {% if q.description %}
+                            <span class="question-desc">{{ q.description }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="question-actions">
+                            <button type="button" class="btn-edit"
+                                    onclick="openModal('q-edit-{{ q.id }}')">Edit Question</button>
+                            <form method="POST"
+                                  action="{{ url_for('delete_question_route', qid=q.id) }}"
+                                  style="display:inline"
+                                  onsubmit="return confirm('Delete this question?')">
+                                <button type="submit" class="btn-delete">Delete</button>
+                            </form>
+                        </div>
+
+                        <!-- Edit Question modal -->
+                        <div id="q-edit-{{ q.id }}" class="modal-overlay" hidden>
+                            <div class="modal-box">
+                                <h2 class="modal-title">Edit question</h2>
+                                <form method="POST"
+                                      action="{{ url_for('edit_question', qid=q.id) }}">
+                                    <div class="form-group">
+                                        <label>Question</label>
+                                        <input type="text" name="text" class="form-input"
+                                               maxlength="200" value="{{ q.text }}" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description (optional)</label>
+                                        <input type="text" name="description" class="form-input"
+                                               maxlength="500" value="{{ q.description or '' }}">
+                                    </div>
+                                    <div class="modal-actions">
+                                        <button type="button" class="btn-ghost"
+                                                onclick="closeModal('q-edit-{{ q.id }}')">Cancel</button>
+                                        <button type="submit" class="btn-submit btn-inline">Save question</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="questions-empty">No questions yet.</p>
+                {% endif %}
+            </section>
+
+            <button type="submit" form="group-form" class="btn-submit">Save Changes</button>
+        </div>
+
+        <p class="auth-switch">
+            <a href="{{ url_for('groups') }}">Cancel</a>
+        </p>
+
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openAddQ() {
+        document.getElementById('add-q-form').hidden = false;
+        document.getElementById('q-text').focus();
+    }
+    function openModal(id) {
+        document.getElementById(id).hidden = false;
+    }
+    function closeModal(id) {
+        document.getElementById(id).hidden = true;
+    }
+
+    // Keep the vertical scroll position across question add/edit/delete reloads.
+    document.addEventListener('submit', function () {
+        sessionStorage.setItem('qScroll', String(window.scrollY));
+    });
+    window.addEventListener('DOMContentLoaded', function () {
+        var y = sessionStorage.getItem('qScroll');
+        if (y !== null) {
+            window.scrollTo(0, parseInt(y, 10));
+            sessionStorage.removeItem('qScroll');
+        }
+    });
+</script>
+{% endblock %}

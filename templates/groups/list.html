@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Groups — Q&A{% endblock %}
+
+{% macro render_node(node) %}
+<li class="tree-node">
+    <div class="tree-row">
+        {% if node.children %}
+        <button type="button" class="tree-toggle" onclick="toggleChildren(this)">▾</button>
+        {% else %}
+        <span class="tree-toggle-spacer"></span>
+        {% endif %}
+
+        <span class="tree-name">{{ node.name }}</span>
+        <span class="tree-owner">{{ node.owner_name }}</span>
+        <span class="tree-count">{{ node.num_of_questions }} Q</span>
+
+        <span class="tree-actions">
+            {% if node.user_id == session.get('user_id') %}
+                {% if node.num_of_questions == 0 %}
+                <a class="tree-link" href="{{ url_for('add_group', parent=node.id) }}">add group</a>
+                {% endif %}
+                {% if not node.children %}
+                <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}#questions">add questions</a>
+                {% endif %}
+                <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}">Edit</a>
+                <form method="POST"
+                      action="{{ url_for('delete_group_route', id=node.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('Delete this group?')">
+                    <button type="submit" class="btn-delete">Delete</button>
+                </form>
+            {% endif %}
+        </span>
+    </div>
+
+    {% if node.children %}
+    <ul class="tree-children">
+        {% for child in node.children %}{{ render_node(child) }}{% endfor %}
+    </ul>
+    {% endif %}
+</li>
+{% endmacro %}
+
+{% macro render_flat(node) %}
+<li class="tree-node">
+    <div class="tree-row">
+        <span class="tree-toggle-spacer"></span>
+        <span class="tree-name">{{ node.name }}</span>
+        <span class="tree-owner">{{ node.owner_name }}</span>
+        <span class="tree-parent">{{ node.parent_name or '—' }}</span>
+        <span class="tree-count">{{ node.num_of_questions }} Q</span>
+        <span class="tree-actions">
+            {% if node.user_id == session.get('user_id') %}
+            <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}">Edit</a>
+            <form method="POST"
+                  action="{{ url_for('delete_group_route', id=node.id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete this group?')">
+                <button type="submit" class="btn-delete">Delete</button>
+            </form>
+            {% endif %}
+        </span>
+    </div>
+</li>
+{% endmacro %}
+
+{% block content %}
+
+<section class="groups-section">
+    <div class="groups-container">
+
+        <div class="groups-header">
+            <h1 class="groups-title">All groups</h1>
+            <a href="{{ url_for('add_group') }}" class="btn-submit btn-inline">Add Group</a>
+        </div>
+
+        <form class="groups-filter" method="GET" action="{{ url_for('groups') }}">
+            <input type="text" name="q" class="form-input" placeholder="Filter by name"
+                   aria-label="Filter by name" value="{{ q }}">
+            <select name="parent" class="form-input" aria-label="Filter by parent group">
+                <option value="">Any parent group</option>
+                {% for opt in parent_options %}
+                <option value="{{ opt.id }}"
+                    {% if parent_id == opt.id|string %}selected{% endif %}>
+                    {{ opt.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn-submit btn-inline">Apply</button>
+            {% if filter_active %}
+            <a class="tree-link" href="{{ url_for('groups') }}">Clear</a>
+            {% endif %}
+        </form>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        {% for message in messages %}
+        <div class="auth-error">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% if filter_active %}
+            {% if flat %}
+            <ul class="tree">
+                {% for node in flat %}{{ render_flat(node) }}{% endfor %}
+            </ul>
+            {% else %}
+            <p class="groups-empty">No groups match this filter.</p>
+            {% endif %}
+        {% elif tree %}
+        <ul class="tree">
+            {% for root in tree %}{{ render_node(root) }}{% endfor %}
+        </ul>
+        {% else %}
+        <p class="groups-empty">
+            No groups yet. <a href="{{ url_for('add_group') }}">Add the first one</a>.
+        </p>
+        {% endif %}
+
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleChildren(btn) {
+        var li = btn.closest('.tree-node');
+        var ul = li.querySelector(':scope > .tree-children');
+        if (!ul) return;
+        if (ul.hasAttribute('hidden')) {
+            ul.removeAttribute('hidden');
+            btn.textContent = '▾';
+        } else {
+            ul.setAttribute('hidden', '');
+            btn.textContent = '▸';
+        }
+    }
+</script>
+{% endblock %}

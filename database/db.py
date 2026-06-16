@@ -8,7 +8,9 @@ from werkzeug.security import generate_password_hash
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_THIS_DIR)
 DB_PATH = os.path.join(_PROJECT_ROOT, "my.db")
-GROUPS_JSON_PATH = os.path.join(_THIS_DIR, "groups.json")
+IMPORT_DIR = os.path.join(_THIS_DIR, "import")
+GROUPS_JSON_PATH = os.path.join(IMPORT_DIR, "groups.json")
+QUESTIONS_JSON_PATH = os.path.join(IMPORT_DIR, "questions.json")
 
 
 def get_db():
@@ -47,6 +49,18 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS questions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id    INTEGER NOT NULL REFERENCES groups(id),
+                user_id     INTEGER NOT NULL REFERENCES users(id),
+                text        TEXT NOT NULL,
+                description TEXT,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
         conn.commit()
     finally:
         conn.close()
@@ -66,7 +80,7 @@ def seed_db():
             ("Demo User", "demo@my.com", generate_password_hash("demo123")),
         )
 
-        groups = _load_groups()
+        groups = _load_json(GROUPS_JSON_PATH)
         # Insert parents before children so FK references resolve.
         for group in _ordered_by_parent(groups):
             conn.execute(
@@ -86,6 +100,30 @@ def seed_db():
                     group["created_at"],
                 ),
             )
+
+        # Questions reference groups, so they are seeded after the groups.
+        for question in _load_json(QUESTIONS_JSON_PATH):
+            conn.execute(
+                """
+                INSERT INTO questions
+                    (id, group_id, user_id, text, description, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    question["id"],
+                    question["group_id"],
+                    question["user_id"],
+                    question["text"],
+                    question.get("description"),
+                    question["created_at"],
+                ),
+            )
+
+        # Keep num_of_questions consistent with the seeded question rows.
+        conn.execute(
+            "UPDATE groups SET num_of_questions = "
+            "(SELECT COUNT(*) FROM questions WHERE questions.group_id = groups.id)"
+        )
 
         conn.commit()
     finally:
@@ -121,11 +159,11 @@ def get_user_by_email(email):
         conn.close()
 
 
-def _load_groups():
-    """Read groups from groups.json; return [] if the file is missing."""
-    if not os.path.exists(GROUPS_JSON_PATH):
+def _load_json(path):
+    """Read a JSON array from path; return [] if the file is missing."""
+    if not os.path.exists(path):
         return []
-    with open(GROUPS_JSON_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

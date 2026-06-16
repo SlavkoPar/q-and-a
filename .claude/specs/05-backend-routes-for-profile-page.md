@@ -67,12 +67,9 @@ File: `tests/test_backend_connection.py`
 |---|---|---|
 | `get_user_by_id` | valid `user_id` | dict with correct `name`, `email`, `member_since` |
 | `get_user_by_id` | non-existent id | `None` |
-| `get_summary_stats` | `user_id` with expenses | correct `total_spent`, `transaction_count`, `top_category` |
-| `get_summary_stats` | `user_id` with no expenses | `{"total_spent": 0, "transaction_count": 0, "top_category": "—"}` |
-| `get_recent_transactions` | `user_id` with expenses | list ordered newest-first, each item has `date`, `description`, `category`, `amount` |
-| `get_recent_transactions` | `user_id` with no expenses | empty list |
-| `get_category_breakdown` | `user_id` with expenses | list ordered by `amount` desc; `pct` values are integers summing to 100 |
-| `get_category_breakdown` | `user_id` with no expenses | empty list |
+| `get_summary_stats` | `user_id` with expenses | correct `total_spent`, 
+| `get_summary_stats` | 
+
 
 ### Route tests
 `GET /profile` — unauthenticated:
