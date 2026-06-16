@@ -1,0 +1,7 @@
+[
+  { "id": 4, "question_id": 3, "answer_id": 2, "future": null, "user_id": 1, "created_at": "2026-06-12 07:59:59" },
+  { "id": 5, "question_id": 3, "answer_id": 3, "future": null, "user_id": 1, "created_at": "2026-06-12 08:00:01" },
+  { "id": 6, "question_id": 3, "answer_id": 4, "future": null, "user_id": 1, "created_at": "2026-06-12 08:00:07" },
+  { "id": 7, "question_id": 3, "answer_id": 5, "future": null, "user_id": 1, "created_at": "2026-06-12 08:00:09" },
+  { "id": 9, "question_id": 4, "answer_id": 1, "future": null, "user_id": 1, "created_at": "2026-06-12 08:01:49" }
+]

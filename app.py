@@ -22,18 +22,27 @@ from database.db import (
     seed_db,
 )
 from database.queries import (
+    assign_answer,
     count_child_groups,
+    delete_answer,
     delete_group,
     delete_question,
+    get_all_answers,
     get_all_groups,
+    get_answer_by_id,
+    get_assigned_answers,
     get_group_by_id,
     get_question_by_id,
     get_questions_for_group,
     get_summary_stats,
+    get_unassigned_answers,
     get_user_by_id,
     get_user_groups,
+    insert_answer,
     insert_group,
     insert_question,
+    unassign_answer,
+    update_answer,
     update_group,
     update_question,
 )
@@ -247,7 +256,14 @@ def edit_group(id):
         abort(404)
 
     parent_groups = [g for g in get_user_groups(user_id) if g["id"] != id]
-    questions = get_questions_for_group(id)
+    questions = [
+        {
+            **q,
+            "assigned": get_assigned_answers(q["id"]),
+            "unassigned": get_unassigned_answers(q["id"]),
+        }
+        for q in get_questions_for_group(id)
+    ]
 
     if request.method == "GET":
         form = {
@@ -363,6 +379,98 @@ def delete_question_route(qid):
     group_id = question["group_id"]
     delete_question(qid, user_id)
     return redirect(url_for("edit_group", id=group_id) + "#questions")
+
+
+@app.route("/questions/<int:qid>/answers/assign", methods=["POST"])
+def assign_answer_route(qid):
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    question = get_question_by_id(qid, user_id)
+    if question is None:
+        abort(404)
+    answer_raw = request.form.get("answer_id", "").strip()
+    if answer_raw.isdigit():
+        assign_answer(qid, int(answer_raw), user_id)
+    return redirect(url_for("edit_group", id=question["group_id"]) + "#questions")
+
+
+@app.route("/questions/<int:qid>/answers/<int:aid>/unassign", methods=["POST"])
+def unassign_answer_route(qid, aid):
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    question = get_question_by_id(qid, user_id)
+    if question is None:
+        abort(404)
+    unassign_answer(qid, aid)
+    return redirect(url_for("edit_group", id=question["group_id"]) + "#questions")
+
+
+# ------------------------------------------------------------------ #
+# Answers                                                             #
+# ------------------------------------------------------------------ #
+
+@app.route("/answers")
+def answers():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    q = request.args.get("q", "").strip()
+    return render_template("answers/list.html", answers=get_all_answers(q=q or None), q=q)
+
+
+@app.route("/answers/add", methods=["GET", "POST"])
+def add_answer():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        form = {"short_desc": "", "description": "", "link": ""}
+        return render_template("answers/add_answer.html", form=form)
+    if request.method != "POST":
+        abort(405)
+
+    short_desc = request.form.get("short_desc", "").strip()
+    description = request.form.get("description", "").strip()
+    link = request.form.get("link", "").strip()
+    form = {"short_desc": short_desc, "description": description, "link": link}
+    if not short_desc:
+        flash("A short description is required.")
+        return render_template("answers/add_answer.html", form=form)
+
+    insert_answer(user_id, short_desc, description or None, link or None)
+    return redirect(url_for("answers"))
+
+
+@app.route("/answers/<int:aid>/edit", methods=["POST"])
+def edit_answer(aid):
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    if get_answer_by_id(aid, user_id) is None:
+        abort(404)
+
+    short_desc = request.form.get("short_desc", "").strip()
+    description = request.form.get("description", "").strip()
+    link = request.form.get("link", "").strip()
+    if not short_desc:
+        flash("A short description is required.")
+        return redirect(url_for("answers"))
+
+    update_answer(aid, user_id, short_desc, description or None, link or None)
+    return redirect(url_for("answers"))
+
+
+@app.route("/answers/<int:aid>/delete", methods=["POST"])
+def delete_answer_route(aid):
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    if get_answer_by_id(aid, user_id) is None:
+        abort(404)
+    delete_answer(aid, user_id)
+    return redirect(url_for("answers"))
 
 
 if __name__ == "__main__":

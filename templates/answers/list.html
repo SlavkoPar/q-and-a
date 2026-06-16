@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Answers — Q&A{% endblock %}
+
+{% block content %}
+
+<section class="answers-section">
+    <div class="answers-container">
+
+        <div class="answers-header">
+            <h1 class="answers-title">Answers</h1>
+            <a href="{{ url_for('add_answer') }}" class="btn-submit btn-inline">Add Answer</a>
+        </div>
+
+        <form class="answers-filter" method="GET" action="{{ url_for('answers') }}">
+            <input type="text" name="q" class="form-input" placeholder="Filter by name"
+                   aria-label="Filter answers by name" value="{{ q }}"
+                   list="answer-names" autocomplete="off">
+            <datalist id="answer-names">
+                {% for a in answers %}<option value="{{ a.short_desc }}">{% endfor %}
+            </datalist>
+            <button type="submit" class="btn-submit btn-inline">Apply</button>
+            {% if q %}<a class="tree-link" href="{{ url_for('answers') }}">Clear</a>{% endif %}
+        </form>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        {% for message in messages %}
+        <div class="auth-error">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% if answers %}
+        <ul class="answer-list">
+            {% for a in answers %}
+            <li class="answer-row">
+                <div class="answer-text">
+                    <strong>{{ a.short_desc }}</strong>
+                    {% if a.description %}<span class="answer-desc">{{ a.description }}</span>{% endif %}
+                    {% if a.link %}<a class="answer-link" href="{{ a.link }}" target="_blank" rel="noopener">link ↗</a>{% endif %}
+                </div>
+                <div class="answer-meta">
+                    <span class="answer-owner">{{ a.owner_name }}</span>
+                    {% if a.user_id == session.get('user_id') %}
+                    <button type="button" class="btn-edit"
+                            data-action="{{ url_for('edit_answer', aid=a.id) }}"
+                            data-short="{{ a.short_desc }}"
+                            data-description="{{ a.description or '' }}"
+                            data-link="{{ a.link or '' }}"
+                            onclick="openEditA(this)">Edit</button>
+                    <form method="POST" action="{{ url_for('delete_answer_route', aid=a.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Delete this answer?')">
+                        <button type="submit" class="btn-delete">Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% elif q %}
+        <p class="answers-empty">No answers match this filter.</p>
+        {% else %}
+        <p class="answers-empty">No answers yet. <a href="{{ url_for('add_answer') }}">Add the first one</a>.</p>
+        {% endif %}
+
+    </div>
+</section>
+
+<!-- Edit Answer modal -->
+<div id="a-modal" class="modal-overlay" hidden>
+    <div class="modal-box">
+        <h2 class="modal-title">Edit answer</h2>
+        <form id="a-edit-form" method="POST">
+            <div class="form-group">
+                <label for="a-edit-short">Short description</label>
+                <input type="text" id="a-edit-short" name="short_desc"
+                       class="form-input" maxlength="200" required>
+            </div>
+            <div class="form-group">
+                <label for="a-edit-desc">Description (optional)</label>
+                <input type="text" id="a-edit-desc" name="description"
+                       class="form-input" maxlength="500">
+            </div>
+            <div class="form-group">
+                <label for="a-edit-link">Link (optional)</label>
+                <input type="url" id="a-edit-link" name="link" class="form-input">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-ghost" onclick="closeAModal()">Cancel</button>
+                <button type="submit" class="btn-submit btn-inline">Save answer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openEditA(btn) {
+        var f = document.getElementById('a-edit-form');
+        f.action = btn.dataset.action;
+        document.getElementById('a-edit-short').value = btn.dataset.short;
+        document.getElementById('a-edit-desc').value = btn.dataset.description;
+        document.getElementById('a-edit-link').value = btn.dataset.link;
+        document.getElementById('a-modal').hidden = false;
+    }
+    function closeAModal() {
+        document.getElementById('a-modal').hidden = true;
+    }
+    document.addEventListener('submit', function () {
+        sessionStorage.setItem('aScroll', String(window.scrollY));
+    });
+    window.addEventListener('DOMContentLoaded', function () {
+        var y = sessionStorage.getItem('aScroll');
+        if (y !== null) { window.scrollTo(0, parseInt(y, 10)); sessionStorage.removeItem('aScroll'); }
+    });
+</script>
+{% endblock %}

@@ -79,12 +79,15 @@ def test_get_summary_stats_with_groups():
         "SELECT COALESCE(SUM(num_of_questions), 0) AS n FROM groups WHERE user_id = ?",
         (SEED_USER_ID,),
     ).fetchone()["n"]
+    expected_answers = conn.execute(
+        "SELECT COUNT(*) AS n FROM answers WHERE user_id = ?", (SEED_USER_ID,)
+    ).fetchone()["n"]
     conn.close()
 
     stats = get_summary_stats(SEED_USER_ID)
     assert stats["groups"] == expected_groups
     assert stats["questions"] == expected_questions
-    assert stats["answers"] == 0
+    assert stats["answers"] == expected_answers
 
 
 def test_get_summary_stats_no_groups(temp_user):

@@ -14,6 +14,8 @@
     --accent-light: #e8f0eb;
     --accent-2: #c17f24;
     --accent-2-light: #fdf3e3;
+    --accent-3: #3a6ea5;
+    --accent-3-light: #eaf1f8;
     --danger: #c0392b;
     --danger-light: #fdecea;
     --border: #e4e1da;
@@ -661,8 +663,15 @@ a { color: inherit; text-decoration: none; }
 .groups-filter {
     display: flex; align-items: center; gap: 0.75rem;
     margin-bottom: 1.5rem; flex-wrap: wrap;
+    background: var(--accent-light);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.75rem;
 }
-.groups-filter .form-input { width: auto; flex: 0 1 14rem; padding: 0.4rem 0.875rem; }
+.groups-filter .form-input {
+    width: auto; flex: 0 1 14rem; padding: 0.4rem 0.875rem;
+    border-color: var(--accent);
+}
 
 /* Tree */
 .tree, .tree-children { list-style: none; margin: 0; padding: 0; }
@@ -674,7 +683,11 @@ a { color: inherit; text-decoration: none; }
 .tree-row {
     display: flex; align-items: center; gap: 0.75rem;
     padding: 5px 0.5rem;
-    border-bottom: 1px solid var(--border-soft);
+    background: var(--accent-light);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.25rem;
 }
 .tree-toggle {
     width: 1.4rem; height: 1.4rem; flex-shrink: 0;
@@ -715,8 +728,16 @@ a { color: inherit; text-decoration: none; }
 .question-list { list-style: none; margin: 0 0 1.5rem; padding: 0; }
 .question-row {
     display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 1rem; padding: 5px 0;
-    border-bottom: 1px solid var(--border-soft);
+    gap: 1rem; padding: 5px 0.6rem;
+    background: var(--accent-3-light);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--accent-3);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.25rem;
+}
+.question-row .answer-count {
+    color: var(--accent-3);
+    background: var(--paper-card);
 }
 .question-text { display: flex; flex-direction: column; gap: 0.2rem; }
 .question-desc { color: var(--ink-muted); font-size: 0.85rem; }
@@ -738,5 +759,70 @@ a { color: inherit; text-decoration: none; }
     padding: 2rem; overflow-y: auto;
     box-shadow: 0 20px 60px rgba(15, 15, 15, 0.25);
 }
+/* The "select unassigned answers" modal is smaller than the edit modals.
+   Its content (answer rows + filter) shares the answers (gold) theme. */
+.modal-box-select {
+    width: 50%; height: 70%;
+    border-top: 3px solid var(--accent-2);
+}
+.modal-box-select .form-input { border-color: var(--accent-2); }
 .modal-title { font-family: var(--font-display); font-size: 1.5rem; color: var(--ink); margin: 0 0 1.5rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
+
+/* ------------------------------------------------------------------ */
+/* Answers                                                            */
+/* ------------------------------------------------------------------ */
+.answers-section { padding: 3rem 2rem; }
+.answers-container { max-width: 720px; margin: 0 auto; }
+.answers-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+.answers-title { font-family: var(--font-display); font-size: 2rem; color: var(--ink); margin: 0; }
+.answers-filter {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 1.5rem; flex-wrap: wrap;
+    background: var(--accent-2-light);
+    border-left: 3px solid var(--accent-2);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.75rem;
+}
+.answers-filter .form-input {
+    width: auto; flex: 0 1 16rem;
+    border-color: var(--accent-2);
+}
+.answer-list { list-style: none; margin: 0; padding: 0; }
+
+/* Answers get a distinct look from groups (tree) and questions. */
+.answer-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 0.1rem 0.6rem;
+    background: var(--accent-2-light);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--accent-2);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.25rem;
+}
+.answer-text { display: flex; flex-direction: column; gap: 0.1rem; }
+.answer-desc { color: var(--ink-muted); font-size: 0.85rem; }
+.answer-link { color: var(--accent-2); font-size: 0.8rem; }
+.answer-meta { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.answer-owner { color: var(--ink-faint); font-size: 0.8rem; }
+.answers-empty { color: var(--ink-muted); }
+.answer-count {
+    color: var(--accent-2); font-size: 0.78rem;
+    background: var(--accent-2-light);
+    padding: 0.05rem 0.4rem; border-radius: var(--radius-sm);
+    align-self: flex-start;
+}
+.qa-subhead { font-size: 0.9rem; color: var(--ink-soft); margin: 0; }
+.qa-section {
+    border-top: 1px solid var(--border-soft);
+    margin-top: 1.25rem; padding-top: 1rem;
+}
+
+/* Compact rows for groups, questions and answers (spec). */
+.tree-row, .question-row { padding-top: 0.1rem; padding-bottom: 0.1rem; }
+
+/* Tighter inputs (spec). */
+.form-input { padding: 0.125rem 0.875rem; }

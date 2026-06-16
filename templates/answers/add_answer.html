@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Add answer — Q&A{% endblock %}
+
+{% block content %}
+
+<section class="auth-section">
+    <div class="auth-container">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Add an answer</h1>
+            <p class="auth-subtitle">A reusable answer you can assign to questions</p>
+        </div>
+
+        <div class="auth-card">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            {% for message in messages %}
+            <div class="auth-error">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('add_answer') }}">
+                <div class="form-group">
+                    <label for="short_desc">Short description</label>
+                    <input type="text" id="short_desc" name="short_desc"
+                           class="form-input" maxlength="200"
+                           value="{{ form.short_desc }}" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description (optional)</label>
+                    <input type="text" id="description" name="description"
+                           class="form-input" maxlength="500"
+                           value="{{ form.description }}">
+                </div>
+                <div class="form-group">
+                    <label for="link">Link (optional)</label>
+                    <input type="url" id="link" name="link" class="form-input"
+                           placeholder="https://…" value="{{ form.link }}">
+                </div>
+                <button type="submit" class="btn-submit">Save answer</button>
+            </form>
+        </div>
+
+        <p class="auth-switch">
+            <a href="{{ url_for('answers') }}">Cancel</a>
+        </p>
+
+    </div>
+</section>
+
+{% endblock %}

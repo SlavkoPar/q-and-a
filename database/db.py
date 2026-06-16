@@ -11,6 +11,8 @@ DB_PATH = os.path.join(_PROJECT_ROOT, "my.db")
 IMPORT_DIR = os.path.join(_THIS_DIR, "import")
 GROUPS_JSON_PATH = os.path.join(IMPORT_DIR, "groups.json")
 QUESTIONS_JSON_PATH = os.path.join(IMPORT_DIR, "questions.json")
+ANSWERS_JSON_PATH = os.path.join(IMPORT_DIR, "answers.json")
+QUESTION_ANSWERS_JSON_PATH = os.path.join(IMPORT_DIR, "question_answers.json")
 
 
 def get_db():
@@ -52,18 +54,52 @@ def init_db():
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS questions (
+                id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id                INTEGER NOT NULL REFERENCES groups(id),
+                user_id                 INTEGER NOT NULL REFERENCES users(id),
+                text                    TEXT NOT NULL,
+                description             TEXT,
+                num_of_assigned_answers INTEGER NOT NULL DEFAULT 0,
+                created_at              TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS answers (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                group_id    INTEGER NOT NULL REFERENCES groups(id),
                 user_id     INTEGER NOT NULL REFERENCES users(id),
-                text        TEXT NOT NULL,
+                short_desc  TEXT NOT NULL,
                 description TEXT,
+                link        TEXT,
                 created_at  TEXT NOT NULL DEFAULT (datetime('now'))
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS question_answers (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id INTEGER NOT NULL REFERENCES questions(id),
+                answer_id   INTEGER NOT NULL REFERENCES answers(id),
+                future      TEXT,
+                user_id     INTEGER NOT NULL REFERENCES users(id),
+                created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        _ensure_column(conn, "questions", "num_of_assigned_answers",
+                       "INTEGER NOT NULL DEFAULT 0")
         conn.commit()
     finally:
         conn.close()
+
+
+def _ensure_column(conn, table, column, decl):
+    """Add `column` to `table` if an older DB predates it (idempotent migration)."""
+    cols = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
 def seed_db():
@@ -119,10 +155,49 @@ def seed_db():
                 ),
             )
 
-        # Keep num_of_questions consistent with the seeded question rows.
+        for answer in _load_json(ANSWERS_JSON_PATH):
+            conn.execute(
+                """
+                INSERT INTO answers
+                    (id, user_id, short_desc, description, link, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    answer["id"],
+                    answer["user_id"],
+                    answer["short_desc"],
+                    answer.get("description"),
+                    answer.get("link"),
+                    answer["created_at"],
+                ),
+            )
+
+        for link in _load_json(QUESTION_ANSWERS_JSON_PATH):
+            conn.execute(
+                """
+                INSERT INTO question_answers
+                    (id, question_id, answer_id, future, user_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    link["id"],
+                    link["question_id"],
+                    link["answer_id"],
+                    link.get("future"),
+                    link["user_id"],
+                    link["created_at"],
+                ),
+            )
+
+        # Keep derived counts consistent with the seeded rows.
         conn.execute(
             "UPDATE groups SET num_of_questions = "
             "(SELECT COUNT(*) FROM questions WHERE questions.group_id = groups.id)"
+        )
+        conn.execute(
+            "UPDATE questions SET num_of_assigned_answers = "
+            "(SELECT COUNT(*) FROM question_answers "
+            " WHERE question_answers.question_id = questions.id)"
         )
 
         conn.commit()

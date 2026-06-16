@@ -83,6 +83,7 @@
                             {% if q.description %}
                             <span class="question-desc">{{ q.description }}</span>
                             {% endif %}
+                            <span class="answer-count">{{ q.assigned|length }} assigned answers</span>
                         </div>
                         <div class="question-actions">
                             <button type="button" class="btn-edit"
@@ -95,7 +96,7 @@
                             </form>
                         </div>
 
-                        <!-- Edit Question modal -->
+                        <!-- Question form modal: edit fields + Assigned answers section -->
                         <div id="q-edit-{{ q.id }}" class="modal-overlay" hidden>
                             <div class="modal-box">
                                 <h2 class="modal-title">Edit question</h2>
@@ -111,12 +112,71 @@
                                         <input type="text" name="description" class="form-input"
                                                maxlength="500" value="{{ q.description or '' }}">
                                     </div>
-                                    <div class="modal-actions">
-                                        <button type="button" class="btn-ghost"
-                                                onclick="closeModal('q-edit-{{ q.id }}')">Cancel</button>
-                                        <button type="submit" class="btn-submit btn-inline">Save question</button>
-                                    </div>
+                                    <button type="submit" class="btn-submit btn-inline">Save question</button>
                                 </form>
+
+                                <!-- Assigned answers section -->
+                                <section class="qa-section">
+                                    <div class="questions-header">
+                                        <h3 class="qa-subhead">Assigned answers</h3>
+                                        <button type="button" class="btn-submit btn-inline"
+                                                onclick="openModal('q-select-{{ q.id }}')">Assign answer</button>
+                                    </div>
+                                    {% if q.assigned %}
+                                    <ul class="answer-list">
+                                        {% for ans in q.assigned %}
+                                        <li class="answer-row">
+                                            <span>{{ ans.short_desc }}</span>
+                                            <form method="POST"
+                                                  action="{{ url_for('unassign_answer_route', qid=q.id, aid=ans.id) }}"
+                                                  style="display:inline">
+                                                <button type="submit" class="btn-delete">Remove</button>
+                                            </form>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <p class="questions-empty">None assigned yet.</p>
+                                    {% endif %}
+                                </section>
+
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-ghost"
+                                            onclick="closeModal('q-edit-{{ q.id }}')">Close</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal: select an answer that is not already assigned -->
+                        <div id="q-select-{{ q.id }}" class="modal-overlay" hidden>
+                            <div class="modal-box modal-box-select">
+                                <h2 class="modal-title">Assign an answer</h2>
+                                <input type="text" class="form-input"
+                                       placeholder="Filter answers by name"
+                                       aria-label="Filter answers by name"
+                                       autocomplete="off"
+                                       oninput="filterOptions(this, 'q-unassigned-{{ q.id }}')">
+                                {% if q.unassigned %}
+                                <ul class="answer-list" id="q-unassigned-{{ q.id }}">
+                                    {% for ans in q.unassigned %}
+                                    <li class="answer-row qa-option" data-name="{{ ans.short_desc|lower }}">
+                                        <span>{{ ans.short_desc }}</span>
+                                        <form method="POST"
+                                              action="{{ url_for('assign_answer_route', qid=q.id) }}"
+                                              style="display:inline">
+                                            <input type="hidden" name="answer_id" value="{{ ans.id }}">
+                                            <button type="submit" class="btn-submit btn-inline">Add</button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="questions-empty">All answers are already assigned.</p>
+                                {% endif %}
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-ghost"
+                                            onclick="closeModal('q-select-{{ q.id }}')">Close</button>
+                                </div>
                             </div>
                         </div>
                     </li>
@@ -150,6 +210,12 @@
     }
     function closeModal(id) {
         document.getElementById(id).hidden = true;
+    }
+    function filterOptions(input, listId) {
+        var term = input.value.trim().toLowerCase();
+        document.querySelectorAll('#' + listId + ' .qa-option').forEach(function (row) {
+            row.hidden = term && row.dataset.name.indexOf(term) === -1;
+        });
     }
 
     // Keep the vertical scroll position across question add/edit/delete reloads.

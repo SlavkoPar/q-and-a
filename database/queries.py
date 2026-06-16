@@ -61,13 +61,17 @@ def get_summary_stats(user_id):
             """,
             (user_id,),
         ).fetchone()
+        answers = conn.execute(
+            "SELECT COUNT(*) AS n FROM answers WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()["n"]
     finally:
         conn.close()
 
     return {
         "groups": row["groups"],
         "questions": row["questions"],
-        "answers": 0,
+        "answers": answers,
     }
 
 
@@ -301,6 +305,206 @@ def delete_question(question_id, user_id):
             (question_id, user_id),
         )
         _recount_group_questions(conn, row["group_id"])
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Answers                                                            #
+# ------------------------------------------------------------------ #
+
+def get_all_answers(q=None):
+    """Return answers (any owner), optionally filtered by short_desc substring."""
+    clauses = []
+    params = []
+    if q:
+        clauses.append("a.short_desc LIKE ?")
+        params.append(f"%{q}%")
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT a.id, a.user_id, a.short_desc, a.description, a.link,
+                   a.created_at, u.name AS owner_name
+            FROM answers a
+            JOIN users u ON u.id = a.user_id
+            {where}
+            ORDER BY a.short_desc
+            """,
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_answer_by_id(answer_id, user_id):
+    """Return the answer row only if it belongs to user_id, else None."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM answers WHERE id = ? AND user_id = ?",
+            (answer_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row is not None else None
+
+
+def insert_answer(user_id, short_desc, description=None, link=None):
+    """Insert an answer; return the new id."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO answers (user_id, short_desc, description, link)
+            VALUES (?, ?, ?, ?)
+            """,
+            (user_id, short_desc, description, link),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_answer(answer_id, user_id, short_desc, description=None, link=None):
+    """Update an answer, scoped to owner. Returns rows changed."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            UPDATE answers
+               SET short_desc = ?, description = ?, link = ?
+             WHERE id = ? AND user_id = ?
+            """,
+            (short_desc, description, link, answer_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def delete_answer(answer_id, user_id):
+    """Delete an answer (owner-scoped) and its question links; re-sync counts."""
+    conn = get_db()
+    try:
+        if conn.execute(
+            "SELECT 1 FROM answers WHERE id = ? AND user_id = ?",
+            (answer_id, user_id),
+        ).fetchone() is None:
+            return 0
+        affected = [
+            r["question_id"]
+            for r in conn.execute(
+                "SELECT question_id FROM question_answers WHERE answer_id = ?",
+                (answer_id,),
+            ).fetchall()
+        ]
+        conn.execute("DELETE FROM question_answers WHERE answer_id = ?", (answer_id,))
+        cur = conn.execute(
+            "DELETE FROM answers WHERE id = ? AND user_id = ?",
+            (answer_id, user_id),
+        )
+        for qid in set(affected):
+            _recount_question_answers(conn, qid)
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Question ↔ Answer assignments                                      #
+# ------------------------------------------------------------------ #
+
+def _recount_question_answers(conn, question_id):
+    """Sync questions.num_of_assigned_answers to the live link count."""
+    conn.execute(
+        """
+        UPDATE questions
+           SET num_of_assigned_answers = (
+               SELECT COUNT(*) FROM question_answers WHERE question_id = ?
+           )
+         WHERE id = ?
+        """,
+        (question_id, question_id),
+    )
+
+
+def get_assigned_answers(question_id):
+    """Return the answers assigned to a question, ordered by short_desc."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.id, a.short_desc, a.description, a.link
+            FROM question_answers qa
+            JOIN answers a ON a.id = qa.answer_id
+            WHERE qa.question_id = ?
+            ORDER BY a.short_desc
+            """,
+            (question_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_unassigned_answers(question_id):
+    """Return answers not yet assigned to the given question."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.id, a.short_desc, a.description, a.link
+            FROM answers a
+            WHERE a.id NOT IN (
+                SELECT answer_id FROM question_answers WHERE question_id = ?
+            )
+            ORDER BY a.short_desc
+            """,
+            (question_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(row) for row in rows]
+
+
+def assign_answer(question_id, answer_id, user_id):
+    """Link an answer to a question (no-op if already linked). True if added."""
+    conn = get_db()
+    try:
+        if conn.execute(
+            "SELECT 1 FROM question_answers WHERE question_id = ? AND answer_id = ?",
+            (question_id, answer_id),
+        ).fetchone() is not None:
+            return False
+        conn.execute(
+            "INSERT INTO question_answers (question_id, answer_id, user_id) "
+            "VALUES (?, ?, ?)",
+            (question_id, answer_id, user_id),
+        )
+        _recount_question_answers(conn, question_id)
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def unassign_answer(question_id, answer_id):
+    """Remove an answer↔question link and re-sync the count. Rows deleted."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "DELETE FROM question_answers WHERE question_id = ? AND answer_id = ?",
+            (question_id, answer_id),
+        )
+        _recount_question_answers(conn, question_id)
         conn.commit()
         return cur.rowcount
     finally:

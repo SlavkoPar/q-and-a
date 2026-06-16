@@ -51,8 +51,7 @@ None. The existing `groups` table is sufficient.
     are pre-filled
 - **Modify**: `templates/profile.html` — add an "Add Group" button linking to
   `/groups/add`
-- **Modify**: `templates/base.html` — add an "Add Group" navbar link, visible
-  only when `session.user_id` is set
+
 
 ## Files to change
 - `app.py` — GET + POST handler at `/groups/add` (redirect to `/login` when not

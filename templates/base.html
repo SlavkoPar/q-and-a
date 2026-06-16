@@ -23,7 +23,7 @@
             <div class="nav-links">
                 {% if session.get('user_id') %}
                 <a href="{{ url_for('groups') }}">Groups</a>
-                <a href="{{ url_for('add_group') }}" class="{{ 'nav-link-active' if request.endpoint == 'add_group' else '' }}">Add Group</a>
+                <a href="{{ url_for('answers') }}" class="{{ 'nav-link-active' if request.endpoint == 'answers' else '' }}">Answers</a>
                 <a href="{{ url_for('profile') }}" class="{{ 'nav-link-active' if request.endpoint == 'profile' else '' }}">Dashboard</a>
                 <a href="{{ url_for('logout') }}" class="nav-cta">Log out</a>
                 {% else %}
