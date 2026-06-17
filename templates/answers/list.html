@@ -36,9 +36,17 @@
             {% for a in answers %}
             <li class="answer-row">
                 <div class="answer-text">
-                    <strong>{{ a.short_desc }}</strong>
+                    <span class="answer-head">
+                        <img class="answer-icon" src="{{ url_for('static', filename='A.png') }}" alt="answer">
+                        {% if a.link %}
+                        <a class="answer-link" href="{{ a.link }}" target="_blank" rel="noopener">
+                            <strong>{{ a.short_desc }}</strong> ↗
+                        </a>
+                        {% else %}
+                        <strong>{{ a.short_desc }}</strong>
+                        {% endif %}
+                    </span>
                     {% if a.description %}<span class="answer-desc">{{ a.description }}</span>{% endif %}
-                    {% if a.link %}<a class="answer-link" href="{{ a.link }}" target="_blank" rel="noopener">link ↗</a>{% endif %}
                 </div>
                 <div class="answer-meta">
                     <span class="answer-owner">{{ a.owner_name }}</span>
@@ -71,6 +79,7 @@
 <!-- Edit Answer modal -->
 <div id="a-modal" class="modal-overlay" hidden>
     <div class="modal-box">
+        <button type="button" class="btn-close" onclick="closeAModal()" aria-label="Close">&times;</button>
         <h2 class="modal-title">Edit answer</h2>
         <form id="a-edit-form" method="POST">
             <div class="form-group">

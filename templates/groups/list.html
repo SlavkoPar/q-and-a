@@ -11,9 +11,14 @@
         <span class="tree-toggle-spacer"></span>
         {% endif %}
 
+        {% if node.user_id == session.get('user_id') %}
+        <a class="tree-name tree-name-link" href="{{ url_for('edit_group', id=node.id) }}">{{ node.name }}</a>
+        {% else %}
         <span class="tree-name">{{ node.name }}</span>
+        {% endif %}
         <span class="tree-owner">{{ node.owner_name }}</span>
-        <span class="tree-count">{{ node.num_of_questions }} Q</span>
+        <span class="tree-count">{{ node.num_of_questions }}
+            <img class="count-icon" src="{{ url_for('static', filename='Q.png') }}" alt="questions"></span>
 
         <span class="tree-actions">
             {% if node.user_id == session.get('user_id') %}
@@ -21,9 +26,13 @@
                 <a class="tree-link" href="{{ url_for('add_group', parent=node.id) }}">add group</a>
                 {% endif %}
                 {% if not node.children %}
-                <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}#questions">add questions</a>
+                <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}#questions"
+                   title="add question">
+                    <img class="action-icon"
+                         src="{{ url_for('static', filename='QPlus.png') }}"
+                         alt="add question">
+                </a>
                 {% endif %}
-                <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}">Edit</a>
                 <form method="POST"
                       action="{{ url_for('delete_group_route', id=node.id) }}"
                       style="display:inline"
@@ -46,13 +55,17 @@
 <li class="tree-node">
     <div class="tree-row">
         <span class="tree-toggle-spacer"></span>
+        {% if node.user_id == session.get('user_id') %}
+        <a class="tree-name tree-name-link" href="{{ url_for('edit_group', id=node.id) }}">{{ node.name }}</a>
+        {% else %}
         <span class="tree-name">{{ node.name }}</span>
+        {% endif %}
         <span class="tree-owner">{{ node.owner_name }}</span>
         <span class="tree-parent">{{ node.parent_name or '—' }}</span>
-        <span class="tree-count">{{ node.num_of_questions }} Q</span>
+        <span class="tree-count">{{ node.num_of_questions }}
+            <img class="count-icon" src="{{ url_for('static', filename='Q.png') }}" alt="questions"></span>
         <span class="tree-actions">
             {% if node.user_id == session.get('user_id') %}
-            <a class="tree-link" href="{{ url_for('edit_group', id=node.id) }}">Edit</a>
             <form method="POST"
                   action="{{ url_for('delete_group_route', id=node.id) }}"
                   style="display:inline"

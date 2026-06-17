@@ -89,8 +89,7 @@ No new dependencies.
 
 ## Rules for implementation
 
-- **Modify**: `templates/base.html` — add an "Answers" navbar link, visible
-  only when `session.user_id` is set
+- **Modify**: `templates/base.html` — add an "Answers" navbar link, visible only when `session.user_id` is set
 
 
 - import rows from `database/import/answers.json` and `database/import/question_answers.json`

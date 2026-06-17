@@ -13,6 +13,7 @@
         </div>
 
         <div class="auth-card">
+            <a href="{{ url_for('answers') }}" class="btn-close" aria-label="Close">&times;</a>
             {% with messages = get_flashed_messages() %}
             {% if messages %}
             {% for message in messages %}

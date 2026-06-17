@@ -13,6 +13,7 @@
         </div>
 
         <div class="auth-card">
+            <a href="{{ url_for('groups') }}" class="btn-close" aria-label="Close">&times;</a>
             {% with messages = get_flashed_messages() %}
             {% if messages %}
             {% for message in messages %}
@@ -79,15 +80,17 @@
                     {% for q in questions %}
                     <li class="question-row">
                         <div class="question-text">
-                            <strong>{{ q.text }}</strong>
+                            <span class="answer-head">
+                                <img class="answer-icon" src="{{ url_for('static', filename='Q.png') }}" alt="question">
+                                <button type="button" class="q-link"
+                                        onclick="openModal('q-edit-{{ q.id }}')">{{ q.text }}</button>
+                            </span>
                             {% if q.description %}
                             <span class="question-desc">{{ q.description }}</span>
                             {% endif %}
                             <span class="answer-count">{{ q.assigned|length }} assigned answers</span>
                         </div>
                         <div class="question-actions">
-                            <button type="button" class="btn-edit"
-                                    onclick="openModal('q-edit-{{ q.id }}')">Edit Question</button>
                             <form method="POST"
                                   action="{{ url_for('delete_question_route', qid=q.id) }}"
                                   style="display:inline"
@@ -99,6 +102,9 @@
                         <!-- Question form modal: edit fields + Assigned answers section -->
                         <div id="q-edit-{{ q.id }}" class="modal-overlay" hidden>
                             <div class="modal-box">
+                                <button type="button" class="btn-close"
+                                        onclick="closeModal('q-edit-{{ q.id }}')"
+                                        aria-label="Close">&times;</button>
                                 <h2 class="modal-title">Edit question</h2>
                                 <form method="POST"
                                       action="{{ url_for('edit_question', qid=q.id) }}">
@@ -126,7 +132,13 @@
                                     <ul class="answer-list">
                                         {% for ans in q.assigned %}
                                         <li class="answer-row">
-                                            <span>{{ ans.short_desc }}</span>
+                                            <span class="answer-head"><img class="answer-icon"
+                                                  src="{{ url_for('static', filename='A.png') }}"
+                                                  alt="answer">
+                                                {% if ans.link %}
+                                                <a class="answer-link" href="{{ ans.link }}"
+                                                   target="_blank" rel="noopener">{{ ans.short_desc }} ↗</a>
+                                                {% else %}{{ ans.short_desc }}{% endif %}</span>
                                             <form method="POST"
                                                   action="{{ url_for('unassign_answer_route', qid=q.id, aid=ans.id) }}"
                                                   style="display:inline">
@@ -150,6 +162,9 @@
                         <!-- Modal: select an answer that is not already assigned -->
                         <div id="q-select-{{ q.id }}" class="modal-overlay" hidden>
                             <div class="modal-box modal-box-select">
+                                <button type="button" class="btn-close"
+                                        onclick="closeModal('q-select-{{ q.id }}')"
+                                        aria-label="Close">&times;</button>
                                 <h2 class="modal-title">Assign an answer</h2>
                                 <input type="text" class="form-input"
                                        placeholder="Filter answers by name"
@@ -160,7 +175,9 @@
                                 <ul class="answer-list" id="q-unassigned-{{ q.id }}">
                                     {% for ans in q.unassigned %}
                                     <li class="answer-row qa-option" data-name="{{ ans.short_desc|lower }}">
-                                        <span>{{ ans.short_desc }}</span>
+                                        <span class="answer-head"><img class="answer-icon"
+                                                  src="{{ url_for('static', filename='A.png') }}"
+                                                  alt="answer"> {{ ans.short_desc }}</span>
                                         <form method="POST"
                                               action="{{ url_for('assign_answer_route', qid=q.id) }}"
                                               style="display:inline">

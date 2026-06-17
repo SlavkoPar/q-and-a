@@ -70,7 +70,7 @@ No new dependencies.
 - On the current user's own rows:
   - a group with **no questions** shows an `add group` link
     (`/groups/add?parent=<id>`, which pre-selects the parent)
-  - a group with **no child groups** shows an `add questions` link
+  - a group with **no child groups** shows an `add question` link
     (to the group edit page's Questions section)
   - plus `Edit` and `Delete` (owner-scoped, from Steps 8–9)
 - The "Groups" navbar link is present (from Step 7's base.html change).
@@ -83,6 +83,7 @@ No new dependencies.
    - which has no questions, enable button for adding of child groups, text `add group`
    - enable button for expand and collapse of the child groups
    - which has no child groups, enable button for adding of questions
+   - replace `q' with image `/static/Q.png'
 - one group can have many questions
 - count num_of_questions
 - put link groups in base
