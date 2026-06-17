@@ -120,6 +120,17 @@ def login():
     return redirect(url_for("landing"))
 
 
+@app.route("/login/demo")
+def login_demo():
+    # Convenience sign-in using the seeded demo credentials.
+    user = get_user_by_email("demo@my.com")
+    if user is None or not check_password_hash(user["password_hash"], "demo123"):
+        flash("Demo user is not available.")
+        return redirect(url_for("login"))
+    session["user_id"] = user["id"]
+    return redirect(url_for("groups"))
+
+
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
