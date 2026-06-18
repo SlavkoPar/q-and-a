@@ -26,6 +26,8 @@
                 <a href="{{ url_for('answers') }}" class="{{ 'nav-link-active' if request.endpoint == 'answers' else '' }}">Answers</a>
                 <a href="{{ url_for('profile') }}" class="{{ 'nav-link-active' if request.endpoint == 'profile' else '' }}">Dashboard</a>
                 <a href="{{ url_for('logout') }}" class="nav-cta">Log out</a>
+                <button type="button" class="nav-toggle" onclick="openSideNav()"
+                        aria-label="Open questions menu">☰</button>
                 {% else %}
                 <a href="{{ url_for('login') }}">Sign in</a>
                 <a href="{{ url_for('login_demo') }}">Sign in as Demo user</a>
@@ -34,6 +36,51 @@
             </div>
         </div>
     </nav>
+
+    {% if session.get('user_id') %}
+    <!-- Animated, closable right side navigation: filterable questions + answer section -->
+    <div id="side-nav-backdrop" class="side-nav-backdrop" onclick="closeSideNav()" hidden></div>
+    <aside id="side-nav" class="side-nav side-nav-right" aria-hidden="true" aria-label="Questions">
+        <div class="side-nav-header">
+            <h2 class="side-nav-title">Questions</h2>
+            <button type="button" class="btn-close" onclick="closeSideNav()" aria-label="Close menu">&times;</button>
+        </div>
+        <input type="text" class="form-input side-nav-filter"
+               placeholder="Filter questions…" aria-label="Filter questions"
+               list="side-nav-options" autocomplete="off"
+               oninput="filterSideNav(this)">
+        <datalist id="side-nav-options">
+            {% for q in nav_questions %}<option value="{{ q.text }}">{% endfor %}
+        </datalist>
+        {% if nav_questions %}
+        <ul class="side-nav-list" id="side-nav-list">
+            {% for q in nav_questions %}
+            <li class="side-nav-item" data-name="{{ q.text|lower }}">
+                <button type="button" class="side-nav-q" onclick="selectQuestion(this, {{ q.id }})">
+                    <img class="answer-icon" src="{{ url_for('static', filename='Q.png') }}" alt="question">
+                    {{ q.text }}
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="side-nav-empty" id="side-nav-empty" hidden>No questions match.</p>
+        {% else %}
+        <p class="side-nav-empty">No questions yet.</p>
+        {% endif %}
+
+        <!-- Answer section: shows one assigned answer of the selected question -->
+        <div id="answer-section" class="answer-section" hidden>
+            <h3 class="answer-section-title">Answer for: <span id="answer-section-q"></span></h3>
+            <div id="answer-section-body"></div>
+            <div id="answer-section-actions" class="answer-section-actions" hidden>
+                <button type="button" class="btn-submit btn-inline" onclick="markFixed()">Fixed</button>
+                <button type="button" class="btn-ghost" onclick="nextAnswer()">Not Fixed</button>
+            </div>
+        </div>
+
+        <script id="nav-data" type="application/json">{{ nav_questions | tojson }}</script>
+    </aside>
+    {% endif %}
 
     <main class="main-content">
         {% block content %}{% endblock %}
@@ -48,6 +95,142 @@
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        function openSideNav() {
+            var n = document.getElementById('side-nav');
+            if (!n) return;
+            n.classList.add('open');
+            n.setAttribute('aria-hidden', 'false');
+            var b = document.getElementById('side-nav-backdrop');
+            if (b) b.hidden = false;
+            var f = n.querySelector('.side-nav-filter');
+            if (f) f.focus();
+        }
+        function closeSideNav() {
+            var n = document.getElementById('side-nav');
+            if (!n) return;
+            n.classList.remove('open');
+            n.setAttribute('aria-hidden', 'true');
+            var b = document.getElementById('side-nav-backdrop');
+            if (b) b.hidden = true;
+        }
+        function filterSideNav(input) {
+            var term = input.value.trim().toLowerCase();
+            var items = document.querySelectorAll('#side-nav-list .side-nav-item');
+            var shown = 0;
+            items.forEach(function (li) {
+                var match = li.dataset.name.indexOf(term) !== -1;
+                li.hidden = term && !match;
+                if (!li.hidden) shown++;
+            });
+            var empty = document.getElementById('side-nav-empty');
+            if (empty) empty.hidden = !(items.length > 0 && shown === 0);
+        }
+
+        // --- Answer section: cycle through a question's assigned answers ---
+        var NAV_BY_ID = {};
+        (function () {
+            var el = document.getElementById('nav-data');
+            if (!el) return;
+            try {
+                JSON.parse(el.textContent).forEach(function (q) { NAV_BY_ID[q.id] = q; });
+            } catch (e) { /* no questions */ }
+        })();
+        var A_ICON = "{{ url_for('static', filename='A.png') }}";
+        var sideNavCurrent = null, sideNavIdx = 0;
+
+        function selectQuestion(btn, qid) {
+            sideNavCurrent = NAV_BY_ID[qid];
+            sideNavIdx = 0;
+            if (!sideNavCurrent) return;
+            document.querySelectorAll('#side-nav-list .side-nav-q').forEach(function (b) {
+                b.classList.remove('selected');
+            });
+            if (btn) btn.classList.add('selected');
+            document.getElementById('answer-section').hidden = false;
+            document.getElementById('answer-section-q').textContent = sideNavCurrent.text;
+            renderAnswer();
+        }
+
+        function renderAnswer() {
+            var body = document.getElementById('answer-section-body');
+            var actions = document.getElementById('answer-section-actions');
+            body.innerHTML = '';
+            var answers = (sideNavCurrent && sideNavCurrent.answers) || [];
+            if (answers.length === 0) {
+                body.appendChild(sideNavMsg('No assigned answers for this question.'));
+                actions.hidden = true;
+                return;
+            }
+            if (sideNavIdx >= answers.length) {
+                body.appendChild(sideNavMsg('No more answers to try.'));
+                actions.hidden = true;
+                return;
+            }
+            var a = answers[sideNavIdx];
+            var row = document.createElement('div');
+            row.className = 'answer-row';
+            var head = document.createElement('span');
+            head.className = 'answer-head';
+            var icon = document.createElement('img');
+            icon.className = 'answer-icon';
+            icon.src = A_ICON;
+            icon.alt = 'answer';
+            head.appendChild(icon);
+            if (a.link) {
+                var link = document.createElement('a');
+                link.className = 'answer-link';
+                link.href = a.link;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.textContent = a.short_desc + ' ↗';
+                head.appendChild(link);
+            } else {
+                var strong = document.createElement('strong');
+                strong.textContent = a.short_desc;
+                head.appendChild(strong);
+            }
+            row.appendChild(head);
+            if (a.description) {
+                var desc = document.createElement('span');
+                desc.className = 'answer-desc';
+                desc.textContent = a.description;
+                row.appendChild(desc);
+            }
+            body.appendChild(row);
+            var prog = document.createElement('p');
+            prog.className = 'answer-progress';
+            prog.textContent = 'Answer ' + (sideNavIdx + 1) + ' of ' + answers.length;
+            body.appendChild(prog);
+            actions.hidden = false;
+        }
+
+        function sideNavMsg(text) {
+            var p = document.createElement('p');
+            p.className = 'side-nav-empty';
+            p.textContent = text;
+            return p;
+        }
+
+        function nextAnswer() {
+            sideNavIdx++;
+            renderAnswer();
+        }
+
+        function markFixed() {
+            var body = document.getElementById('answer-section-body');
+            body.innerHTML = '';
+            var p = document.createElement('p');
+            p.className = 'answer-section-fixed';
+            p.textContent = '✓ Marked as fixed.';
+            body.appendChild(p);
+            document.getElementById('answer-section-actions').hidden = true;
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeSideNav();
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -38,6 +38,7 @@ from database.queries import (
     get_unassigned_answers,
     get_user_by_id,
     get_user_groups,
+    get_user_questions,
     insert_answer,
     insert_group,
     insert_question,
@@ -55,6 +56,19 @@ def _initials(name):
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+
+
+@app.context_processor
+def inject_nav_questions():
+    """Expose the logged-in user's questions (with their assigned answers)
+    to the global side-nav menu / answer section."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return {"nav_questions": []}
+    questions = get_user_questions(user_id)
+    for q in questions:
+        q["answers"] = get_assigned_answers(q["id"])
+    return {"nav_questions": questions}
 
 # Ensure the database schema and demo data are ready before serving.
 with app.app_context():

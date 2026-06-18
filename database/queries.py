@@ -509,3 +509,19 @@ def unassign_answer(question_id, answer_id):
         return cur.rowcount
     finally:
         conn.close()
+
+
+def get_user_questions(user_id):
+    """Return [{id, text, group_id}] of the user's questions, ordered by text.
+
+    Used to populate the global side-navigation question list.
+    """
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, text, group_id FROM questions WHERE user_id = ? ORDER BY text",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(row) for row in rows]
