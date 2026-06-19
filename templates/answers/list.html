@@ -13,12 +13,11 @@
         </div>
 
         <form class="answers-filter" method="GET" action="{{ url_for('answers') }}">
-            <input type="text" name="q" class="form-input" placeholder="Filter by name"
-                   aria-label="Filter answers by name" value="{{ q }}"
-                   list="answer-names" autocomplete="off">
-            <datalist id="answer-names">
-                {% for a in answers %}<option value="{{ a.short_desc }}">{% endfor %}
-            </datalist>
+            <select class="ts-remote" name="q"
+                    data-url="{{ url_for('api_answers') }}" data-mode="submit-form"
+                    data-placeholder="Filter by name…" aria-label="Filter answers by name">
+                {% if q %}<option value="{{ q }}" selected>{{ q }}</option>{% endif %}
+            </select>
             <button type="submit" class="btn-submit btn-inline">Apply</button>
             {% if q %}<a class="tree-link" href="{{ url_for('answers') }}">Clear</a>{% endif %}
         </form>

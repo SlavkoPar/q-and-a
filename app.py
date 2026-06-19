@@ -5,6 +5,7 @@ from flask import (
     Flask,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -496,6 +497,65 @@ def delete_answer_route(aid):
         abort(404)
     delete_answer(aid, user_id)
     return redirect(url_for("answers"))
+
+
+# ------------------------------------------------------------------ #
+# Autocomplete search endpoints (Tom Select, debounced remote load)   #
+# ------------------------------------------------------------------ #
+
+@app.route("/api/questions")
+def api_questions():
+    user_id = session.get("user_id")
+    if not user_id:
+        abort(401)
+    q = request.args.get("q", "").strip().lower()
+    items = []
+    for question in get_user_questions(user_id):
+        if q and q not in question["text"].lower():
+            continue
+        items.append({
+            "value": question["id"],
+            "text": question["text"],
+            "answers": get_assigned_answers(question["id"]),
+        })
+    return jsonify(items)
+
+
+@app.route("/api/answers")
+def api_answers():
+    if not session.get("user_id"):
+        abort(401)
+    q = request.args.get("q", "").strip()
+    return jsonify([
+        {"value": a["short_desc"], "text": a["short_desc"]}
+        for a in get_all_answers(q=q or None)
+    ])
+
+
+@app.route("/api/groups")
+def api_groups():
+    if not session.get("user_id"):
+        abort(401)
+    q = request.args.get("q", "").strip()
+    return jsonify([
+        {"value": g["name"], "text": g["name"]}
+        for g in get_all_groups(q=q or None)
+    ])
+
+
+@app.route("/api/questions/<int:qid>/unassigned")
+def api_unassigned_answers(qid):
+    user_id = session.get("user_id")
+    if not user_id:
+        abort(401)
+    if get_question_by_id(qid, user_id) is None:
+        abort(404)
+    q = request.args.get("q", "").strip().lower()
+    return jsonify([
+        {"value": a["id"], "text": a["short_desc"]}
+        for a in get_unassigned_answers(qid)
+        if not q or q in a["short_desc"].lower()
+    ])
 
 
 if __name__ == "__main__":

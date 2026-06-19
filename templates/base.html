@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/tom-select.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
 </head>
@@ -45,13 +46,10 @@
             <h2 class="side-nav-title">Questions</h2>
             <button type="button" class="btn-close" onclick="closeSideNav()" aria-label="Close menu">&times;</button>
         </div>
-        <input type="text" class="form-input side-nav-filter"
-               placeholder="Filter questions…" aria-label="Filter questions"
-               list="side-nav-options" autocomplete="off"
-               oninput="filterSideNav(this)">
-        <datalist id="side-nav-options">
-            {% for q in nav_questions %}<option value="{{ q.text }}">{% endfor %}
-        </datalist>
+        <select class="ts-remote side-nav-filter"
+                data-url="{{ url_for('api_questions') }}"
+                data-mode="question" data-placeholder="Search questions…"
+                aria-label="Search questions"></select>
         {% if nav_questions %}
         <ul class="side-nav-list" id="side-nav-list">
             {% for q in nav_questions %}
@@ -94,6 +92,7 @@
         </div>
     </footer>
 
+    <script src="{{ url_for('static', filename='js/tom-select.complete.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         function openSideNav() {
@@ -139,17 +138,23 @@
         var A_ICON = "{{ url_for('static', filename='A.png') }}";
         var sideNavCurrent = null, sideNavIdx = 0;
 
-        function selectQuestion(btn, qid) {
-            sideNavCurrent = NAV_BY_ID[qid];
+        function showAnswersFor(q) {
+            sideNavCurrent = q;
             sideNavIdx = 0;
             if (!sideNavCurrent) return;
+            document.getElementById('answer-section').hidden = false;
+            document.getElementById('answer-section-q').textContent = sideNavCurrent.text;
+            renderAnswer();
+        }
+
+        function selectQuestion(btn, qid) {
+            var q = NAV_BY_ID[qid];
+            if (!q) return;
             document.querySelectorAll('#side-nav-list .side-nav-q').forEach(function (b) {
                 b.classList.remove('selected');
             });
             if (btn) btn.classList.add('selected');
-            document.getElementById('answer-section').hidden = false;
-            document.getElementById('answer-section-q').textContent = sideNavCurrent.text;
-            renderAnswer();
+            showAnswersFor(q);
         }
 
         function renderAnswer() {
@@ -226,6 +231,54 @@
             body.appendChild(p);
             document.getElementById('answer-section-actions').hidden = true;
         }
+
+        // --- Tom Select autocompletes (remote load, debounced via loadThrottle) ---
+        function tsHandleSelect(el, value, ts) {
+            if (value === '' || value === null || value === undefined) return;
+            var mode = el.dataset.mode;
+            if (mode === 'question') {
+                var opt = ts.options[value];
+                if (opt) showAnswersFor({ text: opt.text, answers: opt.answers || [] });
+            } else if (mode === 'submit-form') {
+                var form = el.closest('form');
+                if (form) form.submit();
+            } else if (mode === 'assign') {
+                var f = document.createElement('form');
+                f.method = 'POST';
+                f.action = el.dataset.action;
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'answer_id';
+                input.value = value;
+                f.appendChild(input);
+                document.body.appendChild(f);
+                f.submit();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof TomSelect === 'undefined') return;
+            document.querySelectorAll('.ts-remote').forEach(function (el) {
+                new TomSelect(el, {
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: 'text',
+                    placeholder: el.dataset.placeholder || '',
+                    loadThrottle: 300,         // debounce remote fetches
+                    preload: 'focus',
+                    load: function (query, callback) {
+                        fetch(el.dataset.url + '?q=' + encodeURIComponent(query))
+                            .then(function (r) { return r.json(); })
+                            .then(callback)
+                            .catch(function () { callback(); });
+                    },
+                    onChange: function (value) { tsHandleSelect(el, value, this); }
+                });
+            });
+            document.querySelectorAll('.ts-local').forEach(function (el) {
+                new TomSelect(el, { allowEmptyOption: true });
+            });
+        });
 
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeSideNav();

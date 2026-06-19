@@ -954,3 +954,12 @@ a { color: inherit; text-decoration: none; }
 }
 .side-nav-item a:hover { border-color: var(--accent-3); }
 .side-nav-empty { color: var(--ink-muted); font-size: 0.9rem; }
+
+/* ------------------------------------------------------------------ */
+/* Tom Select sizing within our layouts                               */
+/* ------------------------------------------------------------------ */
+.ts-wrapper { font-family: var(--font-body); font-size: 0.9rem; }
+.side-nav .ts-wrapper { width: 100%; margin-bottom: 1rem; }
+.groups-filter .ts-wrapper,
+.answers-filter .ts-wrapper { flex: 0 1 16rem; min-width: 12rem; margin: 0; }
+.modal-box .ts-wrapper { margin-bottom: 1rem; }

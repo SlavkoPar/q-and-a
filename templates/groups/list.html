@@ -89,9 +89,12 @@
         </div>
 
         <form class="groups-filter" method="GET" action="{{ url_for('groups') }}">
-            <input type="text" name="q" class="form-input" placeholder="Filter by name"
-                   aria-label="Filter by name" value="{{ q }}">
-            <select name="parent" class="form-input" aria-label="Filter by parent group">
+            <select class="ts-remote" name="q"
+                    data-url="{{ url_for('api_groups') }}" data-mode="submit-form"
+                    data-placeholder="Filter by name…" aria-label="Filter by name">
+                {% if q %}<option value="{{ q }}" selected>{{ q }}</option>{% endif %}
+            </select>
+            <select name="parent" class="ts-local" aria-label="Filter by parent group">
                 <option value="">Any parent group</option>
                 {% for opt in parent_options %}
                 <option value="{{ opt.id }}"

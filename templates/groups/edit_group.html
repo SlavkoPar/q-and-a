@@ -166,11 +166,12 @@
                                         onclick="closeModal('q-select-{{ q.id }}')"
                                         aria-label="Close">&times;</button>
                                 <h2 class="modal-title">Assign an answer</h2>
-                                <input type="text" class="form-input"
-                                       placeholder="Filter answers by name"
-                                       aria-label="Filter answers by name"
-                                       autocomplete="off"
-                                       oninput="filterOptions(this, 'q-unassigned-{{ q.id }}')">
+                                <select class="ts-remote"
+                                        data-url="{{ url_for('api_unassigned_answers', qid=q.id) }}"
+                                        data-mode="assign"
+                                        data-action="{{ url_for('assign_answer_route', qid=q.id) }}"
+                                        data-placeholder="Search answers to assign…"
+                                        aria-label="Search answers to assign"></select>
                                 {% if q.unassigned %}
                                 <ul class="answer-list" id="q-unassigned-{{ q.id }}">
                                     {% for ans in q.unassigned %}
