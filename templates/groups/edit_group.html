@@ -89,6 +89,7 @@
                             <span class="question-desc">{{ q.description }}</span>
                             {% endif %}
                             <span class="answer-count">{{ q.assigned|length }} assigned answers</span>
+                            <span class="answer-count">{{ q.assigned | sum(attribute='num_of_fixed') }} clicks to Fixed</span>
                         </div>
                         <div class="question-actions">
                             <form method="POST"

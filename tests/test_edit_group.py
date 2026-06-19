@@ -106,8 +106,7 @@ def test_update_group_wrong_user():
 def test_list_shows_all_groups(auth_client, other_user_group):
     _other_id, group_id = other_user_group
     body = auth_client.get("/groups").get_data(as_text=True)
-    assert NAME_PREFIX + "foreign" in body
-    assert "Other Owner" in body
+    assert NAME_PREFIX + "foreign" in body  # other users' groups still listed
     assert any(g["id"] == group_id for g in get_all_groups())
 
 

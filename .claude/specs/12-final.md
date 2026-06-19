@@ -33,6 +33,8 @@ No new dependencies.
 
 - **Modify**: for group-row add image QPlus.png as the link text, instead of add question
 - **Modify**: for group row put `edit` link to name
+- **Modify**: for group row remove filed `owner_name`
+
 
 - **Modify**: for question-row,  add icon Q.png
 - **Modify**: remove button `Edit Question' and put link to  `q.text'

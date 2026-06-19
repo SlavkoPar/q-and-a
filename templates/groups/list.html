@@ -16,7 +16,6 @@
         {% else %}
         <span class="tree-name">{{ node.name }}</span>
         {% endif %}
-        <span class="tree-owner">{{ node.owner_name }}</span>
         <span class="tree-count">{{ node.num_of_questions }}
             <img class="count-icon" src="{{ url_for('static', filename='Q.png') }}" alt="questions"></span>
 
@@ -60,7 +59,6 @@
         {% else %}
         <span class="tree-name">{{ node.name }}</span>
         {% endif %}
-        <span class="tree-owner">{{ node.owner_name }}</span>
         <span class="tree-parent">{{ node.parent_name or '—' }}</span>
         <span class="tree-count">{{ node.num_of_questions }}
             <img class="count-icon" src="{{ url_for('static', filename='Q.png') }}" alt="questions"></span>

@@ -49,7 +49,7 @@
 | id | INTEGER | Primary key, autoincrement |
 | question_id | INTEGER | Foreign key → questions.id, not null |
 | answer_id | INTEGER | Foreign key → answers.id, not null |
-| future | TEXT | Nullable |
+| num_of_Fixed | INTEGER | Default 1
 | user_id | INTEGER | Foreign key → users.id, not null |
 | created_at | TEXT | Default datetime('now') |
 

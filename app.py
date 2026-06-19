@@ -36,13 +36,16 @@ from database.queries import (
     get_question_by_id,
     get_questions_for_group,
     get_summary_stats,
+    get_fixed_answer_ids,
     get_unassigned_answers,
+    increment_fixed,
     get_user_by_id,
     get_user_groups,
     get_user_questions,
     insert_answer,
     insert_group,
     insert_question,
+    record_outcome,
     unassign_answer,
     update_answer,
     update_group,
@@ -54,6 +57,15 @@ def _initials(name):
     """First letters of the first two words of a name, uppercased."""
     parts = name.split()
     return "".join(part[0] for part in parts[:2]).upper()
+
+
+def _assigned_answers_with_fixed(question_id):
+    """Assigned answers for a question, each flagged if previously 'fixed'."""
+    fixed = get_fixed_answer_ids(question_id)
+    answers = get_assigned_answers(question_id)
+    for a in answers:
+        a["fixed"] = a["id"] in fixed
+    return answers
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -68,7 +80,7 @@ def inject_nav_questions():
         return {"nav_questions": []}
     questions = get_user_questions(user_id)
     for q in questions:
-        q["answers"] = get_assigned_answers(q["id"])
+        q["answers"] = _assigned_answers_with_fixed(q["id"])
     return {"nav_questions": questions}
 
 # Ensure the database schema and demo data are ready before serving.
@@ -433,6 +445,22 @@ def unassign_answer_route(qid, aid):
     return redirect(url_for("edit_group", id=question["group_id"]) + "#questions")
 
 
+@app.route("/questions/<int:qid>/answers/<int:aid>/outcome", methods=["POST"])
+def record_outcome_route(qid, aid):
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "auth required"}), 401
+    if get_question_by_id(qid, user_id) is None:
+        abort(404)
+    outcome = request.form.get("outcome", "").strip()
+    if outcome not in ("fixed", "not_fixed"):
+        return jsonify({"error": "invalid outcome"}), 400
+    record_outcome(qid, aid, user_id, outcome)
+    if outcome == "fixed":
+        increment_fixed(qid, aid)
+    return jsonify({"ok": True})
+
+
 # ------------------------------------------------------------------ #
 # Answers                                                             #
 # ------------------------------------------------------------------ #
@@ -516,7 +544,7 @@ def api_questions():
         items.append({
             "value": question["id"],
             "text": question["text"],
-            "answers": get_assigned_answers(question["id"]),
+            "answers": _assigned_answers_with_fixed(question["id"]),
         })
     return jsonify(items)
 

@@ -196,6 +196,12 @@
                 head.appendChild(strong);
             }
             row.appendChild(head);
+            if (a.fixed) {
+                var badge = document.createElement('span');
+                badge.className = 'fixed-badge';
+                badge.textContent = '✓ fixed before';
+                row.appendChild(badge);
+            }
             if (a.description) {
                 var desc = document.createElement('span');
                 desc.className = 'answer-desc';
@@ -217,12 +223,29 @@
             return p;
         }
 
+        function currentAnswer() {
+            var answers = (sideNavCurrent && sideNavCurrent.answers) || [];
+            return answers[sideNavIdx] || null;
+        }
+
+        function postOutcome(answerId, outcome) {
+            if (!sideNavCurrent || !sideNavCurrent.id) return;
+            var fd = new FormData();
+            fd.append('outcome', outcome);
+            fetch('/questions/' + sideNavCurrent.id + '/answers/' + answerId + '/outcome',
+                  { method: 'POST', body: fd }).catch(function () { /* keep flowing */ });
+        }
+
         function nextAnswer() {
+            var a = currentAnswer();
+            if (a) postOutcome(a.id, 'not_fixed');
             sideNavIdx++;
             renderAnswer();
         }
 
         function markFixed() {
+            var a = currentAnswer();
+            if (a) { postOutcome(a.id, 'fixed'); a.fixed = true; }
             var body = document.getElementById('answer-section-body');
             body.innerHTML = '';
             var p = document.createElement('p');
@@ -238,7 +261,7 @@
             var mode = el.dataset.mode;
             if (mode === 'question') {
                 var opt = ts.options[value];
-                if (opt) showAnswersFor({ text: opt.text, answers: opt.answers || [] });
+                if (opt) showAnswersFor({ id: value, text: opt.text, answers: opt.answers || [] });
             } else if (mode === 'submit-form') {
                 var form = el.closest('form');
                 if (form) form.submit();
@@ -266,6 +289,9 @@
                     placeholder: el.dataset.placeholder || '',
                     loadThrottle: 300,         // debounce remote fetches
                     preload: 'focus',
+                    // In a scrolling modal, render the dropdown on <body> so it
+                    // isn't clipped by the modal's overflow.
+                    dropdownParent: el.closest('.modal-overlay') ? 'body' : null,
                     load: function (query, callback) {
                         fetch(el.dataset.url + '?q=' + encodeURIComponent(query))
                             .then(function (r) { return r.json(); })

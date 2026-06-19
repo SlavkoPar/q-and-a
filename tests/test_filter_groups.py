@@ -79,7 +79,9 @@ def test_no_filter_returns_all():
 
 
 def _row(name):
-    return 'tree-name">' + name
+    # Owned group names render as edit links: >NAME</a> (dropdown options
+    # end with </option>, so this targets only the rendered list rows).
+    return '>' + name + '</a>'
 
 
 def test_route_filter_by_name(auth_client):

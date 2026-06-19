@@ -442,7 +442,8 @@ def get_assigned_answers(question_id):
     try:
         rows = conn.execute(
             """
-            SELECT a.id, a.short_desc, a.description, a.link
+            SELECT a.id, a.short_desc, a.description, a.link,
+                   qa.num_of_Fixed AS num_of_fixed
             FROM question_answers qa
             JOIN answers a ON a.id = qa.answer_id
             WHERE qa.question_id = ?
@@ -525,3 +526,55 @@ def get_user_questions(user_id):
     finally:
         conn.close()
     return [dict(row) for row in rows]
+
+
+# ------------------------------------------------------------------ #
+# Resolutions (Fixed / Not-Fixed outcomes)                           #
+# ------------------------------------------------------------------ #
+
+def record_outcome(question_id, answer_id, user_id, outcome):
+    """Append a resolution log row (outcome is 'fixed' or 'not_fixed')."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO resolutions (question_id, answer_id, user_id, outcome)
+            VALUES (?, ?, ?, ?)
+            """,
+            (question_id, answer_id, user_id, outcome),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_fixed_answer_ids(question_id):
+    """Return the set of answer ids marked 'fixed' for a question."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT answer_id FROM resolutions "
+            "WHERE question_id = ? AND outcome = 'fixed'",
+            (question_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {row["answer_id"] for row in rows}
+
+
+def increment_fixed(question_id, answer_id):
+    """Bump num_of_Fixed on the (question, answer) link. Returns rows changed
+    (0 if the answer is not assigned to the question)."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "UPDATE question_answers "
+            "SET num_of_Fixed = COALESCE(num_of_Fixed, 0) + 1 "
+            "WHERE question_id = ? AND answer_id = ?",
+            (question_id, answer_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()

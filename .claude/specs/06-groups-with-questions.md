@@ -93,6 +93,7 @@ No new dependencies.
 - make `Questions` section always visible
 - put 'Add Question' button to the top of the `Questions` section
 - put 'Questions' section inside of group form, before 'Save Changes' button
+- for question row display `num_of_Fixed` field with text `clicks to Fixed` 
 
 -- Open Modal when click od "Edit Question" 
 -- Modal width: 60% height: 80%

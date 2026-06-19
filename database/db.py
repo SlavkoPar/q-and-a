@@ -79,17 +79,33 @@ def init_db():
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS question_answers (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id  INTEGER NOT NULL REFERENCES questions(id),
+                answer_id    INTEGER NOT NULL REFERENCES answers(id),
+                num_of_Fixed INTEGER DEFAULT 1,
+                user_id      INTEGER NOT NULL REFERENCES users(id),
+                created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS resolutions (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 question_id INTEGER NOT NULL REFERENCES questions(id),
                 answer_id   INTEGER NOT NULL REFERENCES answers(id),
-                future      TEXT,
                 user_id     INTEGER NOT NULL REFERENCES users(id),
+                outcome     TEXT NOT NULL,
                 created_at  TEXT NOT NULL DEFAULT (datetime('now'))
             )
             """
         )
         _ensure_column(conn, "questions", "num_of_assigned_answers",
                        "INTEGER NOT NULL DEFAULT 0")
+        # question_answers: 'future' was replaced by 'num_of_Fixed'.
+        _ensure_column(conn, "question_answers", "num_of_Fixed",
+                       "INTEGER DEFAULT 1")
+        _drop_column(conn, "question_answers", "future")
         conn.commit()
     finally:
         conn.close()
@@ -100,6 +116,13 @@ def _ensure_column(conn, table, column, decl):
     cols = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
     if column not in cols:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
+def _drop_column(conn, table, column):
+    """Drop `column` from `table` if present (SQLite >= 3.35)."""
+    cols = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+    if column in cols:
+        conn.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
 
 
 def seed_db():
@@ -176,14 +199,14 @@ def seed_db():
             conn.execute(
                 """
                 INSERT INTO question_answers
-                    (id, question_id, answer_id, future, user_id, created_at)
+                    (id, question_id, answer_id, num_of_Fixed, user_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     link["id"],
                     link["question_id"],
                     link["answer_id"],
-                    link.get("future"),
+                    link.get("num_of_Fixed", 1),
                     link["user_id"],
                     link["created_at"],
                 ),
