@@ -28,17 +28,18 @@ from database.queries import (
     delete_answer,
     delete_group,
     delete_question,
+    fixed_upsert,
     get_all_answers,
     get_all_groups,
     get_answer_by_id,
     get_assigned_answers,
+    get_candidate_answers,
     get_group_by_id,
     get_question_by_id,
     get_questions_for_group,
     get_summary_stats,
     get_fixed_answer_ids,
     get_unassigned_answers,
-    increment_fixed,
     get_user_by_id,
     get_user_groups,
     get_user_questions,
@@ -457,7 +458,8 @@ def record_outcome_route(qid, aid):
         return jsonify({"error": "invalid outcome"}), 400
     record_outcome(qid, aid, user_id, outcome)
     if outcome == "fixed":
-        increment_fixed(qid, aid)
+        # Fixed click: increment the link's counter, or create the link.
+        fixed_upsert(qid, aid, user_id)
     return jsonify({"ok": True})
 
 
@@ -569,6 +571,18 @@ def api_groups():
         {"value": g["name"], "text": g["name"]}
         for g in get_all_groups(q=q or None)
     ])
+
+
+@app.route("/api/questions/<int:qid>/candidates")
+def api_candidate_answers(qid):
+    """Answers relevant to a question for the side-nav answer section:
+    word-matched answers + assigned answers, ordered by Fixed clicks desc."""
+    user_id = session.get("user_id")
+    if not user_id:
+        abort(401)
+    if get_question_by_id(qid, user_id) is None:
+        abort(404)
+    return jsonify(get_candidate_answers(qid))
 
 
 @app.route("/api/questions/<int:qid>/unassigned")
