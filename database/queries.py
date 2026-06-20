@@ -8,6 +8,7 @@ table, so the profile's summary stats are derived from the user's groups
 and question counts rather than spending.
 """
 
+import re
 from datetime import datetime
 
 from database.db import get_db
@@ -578,3 +579,92 @@ def increment_fixed(question_id, answer_id):
         return cur.rowcount
     finally:
         conn.close()
+
+
+def fixed_upsert(question_id, answer_id, user_id):
+    """Record a 'Fixed' click on a (question, answer) pair.
+
+    If the link already exists in question_answers, increment its
+    num_of_Fixed click counter; otherwise create the link with
+    num_of_Fixed = 1. Keeps the question's assigned-answer count in sync.
+    """
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "UPDATE question_answers "
+            "SET num_of_Fixed = COALESCE(num_of_Fixed, 0) + 1 "
+            "WHERE question_id = ? AND answer_id = ?",
+            (question_id, answer_id),
+        )
+        if cur.rowcount == 0:
+            conn.execute(
+                "INSERT INTO question_answers "
+                "(question_id, answer_id, user_id, num_of_Fixed) "
+                "VALUES (?, ?, ?, 1)",
+                (question_id, answer_id, user_id),
+            )
+            _recount_question_answers(conn, question_id)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# Words shorter than this are ignored when matching answers to a question,
+# so common filler ("is", "to", "the") doesn't match everything.
+_MIN_WORD_LEN = 3
+
+
+def get_candidate_answers(question_id):
+    """Answers relevant to a question, for the side-nav answer section.
+
+    Combines (a) answers already assigned to the question with (b) answers
+    whose short_desc/description contains at least one word (>= 3 chars) of
+    the question text. Each carries num_of_fixed (the question_answers click
+    count, 0 if not linked) and a `fixed` flag (previously resolved 'fixed').
+    Ordered by num_of_fixed descending, then short_desc.
+    """
+    conn = get_db()
+    try:
+        qrow = conn.execute(
+            "SELECT text FROM questions WHERE id = ?", (question_id,)
+        ).fetchone()
+        if qrow is None:
+            return []
+
+        words = [
+            w for w in re.findall(r"[a-z0-9]+", qrow["text"].lower())
+            if len(w) >= _MIN_WORD_LEN
+        ]
+        match_clauses = []
+        params = [question_id]
+        for w in words:
+            match_clauses.append(
+                "(LOWER(a.short_desc) LIKE ? "
+                "OR LOWER(COALESCE(a.description, '')) LIKE ?)"
+            )
+            like = f"%{w}%"
+            params.extend([like, like])
+        # "0" -> no word matches; only already-assigned answers qualify.
+        word_filter = " OR ".join(match_clauses) if match_clauses else "0"
+
+        rows = conn.execute(
+            f"""
+            SELECT a.id, a.short_desc, a.description, a.link,
+                   COALESCE(qa.num_of_Fixed, 0) AS num_of_fixed,
+                   CASE WHEN qa.answer_id IS NOT NULL THEN 1 ELSE 0 END AS assigned
+            FROM answers a
+            LEFT JOIN question_answers qa
+                   ON qa.answer_id = a.id AND qa.question_id = ?
+            WHERE qa.answer_id IS NOT NULL OR ({word_filter})
+            ORDER BY num_of_fixed DESC, a.short_desc
+            """,
+            params,
+        ).fetchall()
+        answers = [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+    fixed = get_fixed_answer_ids(question_id)
+    for a in answers:
+        a["fixed"] = a["id"] in fixed
+    return answers

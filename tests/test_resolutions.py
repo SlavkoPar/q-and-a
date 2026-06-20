@@ -12,6 +12,8 @@ import app as application  # noqa: E402
 from database.db import DB_PATH  # noqa: E402
 from database.queries import (  # noqa: E402
     assign_answer,
+    fixed_upsert,
+    get_candidate_answers,
     get_fixed_answer_ids,
     insert_answer,
     insert_group,
@@ -90,6 +92,49 @@ def test_record_and_get_fixed(qa):
     fixed = get_fixed_answer_ids(qid)
     assert a_fixed in fixed
     assert a_other not in fixed
+
+
+def test_fixed_upsert_creates_then_increments(qa):
+    qid, a_fixed, _ = qa
+
+    def num_fixed():
+        conn = _raw()
+        row = conn.execute(
+            "SELECT num_of_Fixed AS n FROM question_answers "
+            "WHERE question_id = ? AND answer_id = ?", (qid, a_fixed)
+        ).fetchone()
+        conn.close()
+        return row["n"] if row else None
+
+    assert num_fixed() is None          # not linked yet
+    fixed_upsert(qid, a_fixed, SEED_USER_ID)
+    assert num_fixed() == 1             # link created at 1
+    fixed_upsert(qid, a_fixed, SEED_USER_ID)
+    assert num_fixed() == 2             # existing link incremented
+
+
+def test_candidate_answers_word_match_and_order():
+    # Distinctive question word ("kangaroo") that is NOT a substring of the
+    # answer prefix, so matching is controlled by the answer text alone.
+    gid = insert_group(SEED_USER_ID, G + "wg")
+    # Question text has no G/A prefix so word matching is controlled purely by
+    # the distinctive words below (cleanup is by group, not question text).
+    qid = insert_question(gid, SEED_USER_ID, "kangaroo problem")
+    a_match = insert_answer(SEED_USER_ID, A + "kangaroo remedy")
+    a_assigned = insert_answer(SEED_USER_ID, A + "zzz unrelated")
+    a_nomatch = insert_answer(SEED_USER_ID, A + "zzz nothing")
+
+    # Assigned answers always qualify even without a word match.
+    assign_answer(qid, a_assigned, SEED_USER_ID)
+    # Give the word-matched answer more Fixed clicks so it ranks first.
+    fixed_upsert(qid, a_match, SEED_USER_ID)
+    fixed_upsert(qid, a_match, SEED_USER_ID)
+
+    ids = [a["id"] for a in get_candidate_answers(qid)]
+    assert a_match in ids               # matched the question word
+    assert a_assigned in ids            # assigned, no word match needed
+    assert a_nomatch not in ids         # neither matched nor assigned
+    assert ids[0] == a_match            # ordered by num_of_fixed desc
 
 
 # --- route ---------------------------------------------------------- #

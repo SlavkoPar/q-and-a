@@ -147,14 +147,32 @@
             renderAnswer();
         }
 
+        // Fetch the candidate answers for a question (word-matched + assigned,
+        // ordered by Fixed clicks desc) then show them one at a time.
+        function loadAnswersFor(qid, text) {
+            document.getElementById('answer-section').hidden = false;
+            document.getElementById('answer-section-q').textContent = text || '';
+            var body = document.getElementById('answer-section-body');
+            body.innerHTML = '';
+            body.appendChild(sideNavMsg('Loading…'));
+            document.getElementById('answer-section-actions').hidden = true;
+            fetch('/api/questions/' + qid + '/candidates')
+                .then(function (r) { return r.json(); })
+                .then(function (answers) {
+                    showAnswersFor({ id: qid, text: text, answers: answers || [] });
+                })
+                .catch(function () {
+                    showAnswersFor({ id: qid, text: text, answers: [] });
+                });
+        }
+
         function selectQuestion(btn, qid) {
             var q = NAV_BY_ID[qid];
-            if (!q) return;
             document.querySelectorAll('#side-nav-list .side-nav-q').forEach(function (b) {
                 b.classList.remove('selected');
             });
             if (btn) btn.classList.add('selected');
-            showAnswersFor(q);
+            loadAnswersFor(qid, q ? q.text : (btn ? btn.textContent.trim() : ''));
         }
 
         function renderAnswer() {
@@ -163,7 +181,7 @@
             body.innerHTML = '';
             var answers = (sideNavCurrent && sideNavCurrent.answers) || [];
             if (answers.length === 0) {
-                body.appendChild(sideNavMsg('No assigned answers for this question.'));
+                body.appendChild(sideNavMsg('No matching answers for this question.'));
                 actions.hidden = true;
                 return;
             }
@@ -261,7 +279,7 @@
             var mode = el.dataset.mode;
             if (mode === 'question') {
                 var opt = ts.options[value];
-                if (opt) showAnswersFor({ id: value, text: opt.text, answers: opt.answers || [] });
+                loadAnswersFor(value, opt ? opt.text : '');
             } else if (mode === 'submit-form') {
                 var form = el.closest('form');
                 if (form) form.submit();

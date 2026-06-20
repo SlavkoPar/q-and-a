@@ -46,7 +46,7 @@ later; not required here — counts can be derived.)
   - Include each answer's fixed-state in the sidebar data (`nav_questions`):
     mark assigned answers that have a `fixed` resolution.
 - `templates/base.html`
-  - `markFixed()` → POST the `fixed` outcome for the current answer, increment field `num_of_Fixed` in table `question_answers`,
+  - `markFixed()` → POST the `fixed` outcome for the current answer
   then show
     "✓ Marked as fixed."
   - `nextAnswer()` → POST the `not_fixed` outcome for the current answer before
@@ -71,6 +71,8 @@ None.
 - Side-nav JS posts via `fetch` (no navigation); failures fail silently so the
   troubleshooting flow keeps working offline-ish.
 - Use CSS variables; no inline styles; reuse existing answer styling.
+- in `assigned answer` row, show column `num_of_Fixed`
+- in `question` row, put `num_of_Fixed' to the same line with num of assigned answers
 
 ## Tests to write
 File: `tests/test_resolutions.py`
