@@ -71,6 +71,8 @@ None.
 - Side-nav JS posts via `fetch` (no navigation); failures fail silently so the
   troubleshooting flow keeps working offline-ish.
 - Use CSS variables; no inline styles; reuse existing answer styling.
+- in `assigned answer` row, show column `num_of_Fixed`
+- in `question` row, put `num_of_Fixed' to the same line with num of assigned answers
 
 ## Tests to write
 File: `tests/test_resolutions.py`
