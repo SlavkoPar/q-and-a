@@ -27,7 +27,7 @@ No new dependencies.
 
 ## Rules for implementation
 
-- instead of simle autocomplete, download and implement, everywhere,autocomplete from `tom-select` js library, use `debunce` for fetching the result
+- instead of simple autocomplete, download and implement, everywhere, autocomplete from `tom-select` js library, use `debounce` for fetching the result,  do not search until at least 2 chars are entered
 
 
 

@@ -307,6 +307,8 @@
                     placeholder: el.dataset.placeholder || '',
                     loadThrottle: 300,         // debounce remote fetches
                     preload: 'focus',
+                    // Don't fire a remote search until at least 2 chars are entered.
+                    shouldLoad: function (query) { return query.length >= 2; },
                     // In a scrolling modal, render the dropdown on <body> so it
                     // isn't clipped by the modal's overflow.
                     dropdownParent: el.closest('.modal-overlay') ? 'body' : null,

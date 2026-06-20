@@ -17,7 +17,7 @@
 ## Templates
 
 ## Files to change
-- Add `INTEGER` field `numOf_Fixed_clicks`, in table `question-answers`
+- Add `INTEGER` field `num?of_Fixed`, in table `question-answers`
 
 ## Files to create
 
@@ -33,13 +33,13 @@ No new dependencies.
 - inside of side bar implement autocomplete filter for questions
 - create `answer section` below the filter
 - on select question 
-   -- select all answers from table `answers` which satisfy at least one word of selected question, set `numOf_Fixeds` for them
+   -- select all answers from table `answers` which satisfy at least one word of selected question, set `num_of_Fixed` for them
    -- append answers from question assigned-answers
-   -- order all answers by numOf_Fixed desc
+   -- order all answers by num_of_Fixed desc
    
    -- display one of the answers with two buttons `Fixed` and `Not Fixed`
    -- on click to `Not Fixed` show next `answer`, 
-   -- on click on 'Fixed', if row exists in table `question-answers`increment increment `numOf_Fixed`, otherwise create a new row in table `question-answers`
+   -- on click on 'Fixed', if row exists in table `question-answers` increment `num_of_Fixed`, otherwise create a new row in table `question-answers` and show next `answer
 
 
 ## Definition of done
