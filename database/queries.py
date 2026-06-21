@@ -9,6 +9,7 @@ and question counts rather than spending.
 """
 
 import re
+import threading
 from datetime import datetime
 
 from database.db import get_db
@@ -613,17 +614,64 @@ def fixed_upsert(question_id, answer_id, user_id):
 # so common filler ("is", "to", "the") doesn't match everything.
 _MIN_WORD_LEN = 3
 
+# Map each consonant to its American Soundex digit; vowels and H/W/Y carry no
+# digit (they only affect how neighbouring consonants collapse).
+_SOUNDEX_DIGITS = {
+    "B": "1", "F": "1", "P": "1", "V": "1",
+    "C": "2", "G": "2", "J": "2", "K": "2", "Q": "2", "S": "2", "X": "2",
+    "Z": "2",
+    "D": "3", "T": "3",
+    "L": "4",
+    "M": "5", "N": "5",
+    "R": "6",
+}
 
-def get_candidate_answers(question_id):
-    """Answers relevant to a question, for the side-nav answer section.
 
-    Combines (a) answers already assigned to the question with (b) answers
-    whose short_desc/description contains at least one word (>= 3 chars) of
-    the question text. Each carries num_of_fixed (the question_answers click
-    count, 0 if not linked) and a `fixed` flag (previously resolved 'fixed').
-    Ordered by num_of_fixed descending, then short_desc.
+def _soundex(value):
+    """American Soundex code (letter + 3 digits) for a single word.
+
+    Registered as the SQLite `soundex` SQL function below, since the bundled
+    SQLite is not compiled with the native one. Non-alpha input yields '0000'.
     """
+    letters = [c for c in str(value or "").upper() if c.isalpha()]
+    if not letters:
+        return "0000"
+    code = letters[0]
+    prev = _SOUNDEX_DIGITS.get(letters[0], "")
+    for ch in letters[1:]:
+        digit = _SOUNDEX_DIGITS.get(ch, "")
+        if digit and digit != prev:
+            code += digit
+            if len(code) == 4:
+                break
+        # H and W are transparent: a consonant after them still collapses
+        # against the one before. Vowels reset, so a repeat then re-codes.
+        if ch not in ("H", "W"):
+            prev = digit
+    return (code + "000")[:4]
+
+
+def _words(text):
+    """Lower-cased word tokens (>= _MIN_WORD_LEN chars) from free text."""
+    return [
+        w for w in re.findall(r"[a-z0-9]+", (text or "").lower())
+        if len(w) >= _MIN_WORD_LEN
+    ]
+
+
+def _soundex_codes(conn, words):
+    """Distinct Soundex codes for `words`, computed via SQLite's soundex()."""
+    if not words:
+        return set()
+    sql = " UNION ".join("SELECT soundex(?)" for _ in words)
+    rows = conn.execute(sql, words).fetchall()
+    return {r[0] for r in rows}
+
+
+def _candidate_answers(question_id):
+    """Worker body for get_candidate_answers — runs on its own connection."""
     conn = get_db()
+    conn.create_function("soundex", 1, _soundex, deterministic=True)
     try:
         qrow = conn.execute(
             "SELECT text FROM questions WHERE id = ?", (question_id,)
@@ -631,40 +679,62 @@ def get_candidate_answers(question_id):
         if qrow is None:
             return []
 
-        words = [
-            w for w in re.findall(r"[a-z0-9]+", qrow["text"].lower())
-            if len(w) >= _MIN_WORD_LEN
-        ]
-        match_clauses = []
-        params = [question_id]
-        for w in words:
-            match_clauses.append(
-                "(LOWER(a.short_desc) LIKE ? "
-                "OR LOWER(COALESCE(a.description, '')) LIKE ?)"
-            )
-            like = f"%{w}%"
-            params.extend([like, like])
-        # "0" -> no word matches; only already-assigned answers qualify.
-        word_filter = " OR ".join(match_clauses) if match_clauses else "0"
+        question_codes = _soundex_codes(conn, _words(qrow["text"]))
 
         rows = conn.execute(
-            f"""
+            """
             SELECT a.id, a.short_desc, a.description, a.link,
                    COALESCE(qa.num_of_Fixed, 0) AS num_of_fixed,
                    CASE WHEN qa.answer_id IS NOT NULL THEN 1 ELSE 0 END AS assigned
             FROM answers a
             LEFT JOIN question_answers qa
                    ON qa.answer_id = a.id AND qa.question_id = ?
-            WHERE qa.answer_id IS NOT NULL OR ({word_filter})
-            ORDER BY num_of_fixed DESC, a.short_desc
             """,
-            params,
+            (question_id,),
         ).fetchall()
-        answers = [dict(r) for r in rows]
+
+        answers = []
+        for r in rows:
+            if not r["assigned"]:
+                answer_words = _words(r["short_desc"]) + _words(r["description"])
+                if question_codes.isdisjoint(_soundex_codes(conn, answer_words)):
+                    continue
+            answers.append(dict(r))
+
+        fixed = get_fixed_answer_ids(question_id)
     finally:
         conn.close()
 
-    fixed = get_fixed_answer_ids(question_id)
+    answers.sort(key=lambda a: (-a["num_of_fixed"], a["short_desc"] or ""))
     for a in answers:
         a["fixed"] = a["id"] in fixed
     return answers
+
+
+def get_candidate_answers(question_id):
+    """Answers relevant to a question, for the side-nav answer section.
+
+    Combines (a) answers already assigned to the question with (b) answers
+    whose short_desc/description contains at least one word (>= 3 chars) that
+    is phonetically equal (same SQLite Soundex code) to a word of the question
+    text. Each carries num_of_fixed (the question_answers click count, 0 if not
+    linked) and a `fixed` flag. Ordered by num_of_fixed desc, then short_desc.
+
+    The lookup runs on a dedicated worker thread (with its own SQLite
+    connection) so the phonetic scan stays off the calling thread.
+    """
+    box = {}
+
+    def worker():
+        try:
+            box["result"] = _candidate_answers(question_id)
+        except BaseException as exc:  # re-raised on the calling thread below
+            box["error"] = exc
+
+    t = threading.Thread(target=worker, name="candidate-answers")
+    t.start()
+    t.join()
+
+    if "error" in box:
+        raise box["error"]
+    return box.get("result", [])

@@ -33,9 +33,11 @@ No new dependencies.
 - inside of side bar implement autocomplete filter for questions
 - create `answer section` below the filter
 - on select question 
-   -- select all answers from table `answers` which satisfy at least one word of selected question, set `num_of_Fixed` for them
+   -- select all answers from table `answers` which satisfy at least one word of selected question, use SQLite SOUNDEX function, do it in separate thread, set `num_of_Fixed` for them
    -- append answers from question assigned-answers
    -- order all answers by num_of_Fixed desc
+
+   -- for select of all answers from table `answers` which satisfy at least one word of selected question, 
    
    -- display one of the answers with two buttons `Fixed` and `Not Fixed`
    -- on click to `Not Fixed` show next `answer`, 
